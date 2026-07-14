@@ -61,3 +61,16 @@ func TestHTTPCommandRejectsMissingHost(t *testing.T) {
 		t.Fatal("Execute returned nil error, want host arg error")
 	}
 }
+
+func TestInteractiveActionsUseTUIAppFields(t *testing.T) {
+	actions := interactiveActions()
+	if len(actions) < 3 {
+		t.Fatalf("len(actions) = %d, want at least 3", len(actions))
+	}
+	if actions[0].Title != "Subnet carve" {
+		t.Fatalf("first action = %q, want Subnet carve", actions[0].Title)
+	}
+	if len(actions[0].Fields) != 2 || actions[0].Fields[0].Label != "Parent CIDR" || actions[0].Fields[1].Label != "Child prefixes" {
+		t.Fatalf("subnet fields = %#v", actions[0].Fields)
+	}
+}
