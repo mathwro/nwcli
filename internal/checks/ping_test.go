@@ -35,6 +35,16 @@ func TestSummarizePingHandlesAllFailedAttempts(t *testing.T) {
 	}
 }
 
+func TestPingSummaryErrorWhenNoReplies(t *testing.T) {
+	err := pingSummaryError("127.0.0.1", PingSummary{Sent: 2, Received: 0})
+	if err == nil {
+		t.Fatal("pingSummaryError returned nil, want no replies error")
+	}
+	if !strings.Contains(err.Error(), "no ping replies") {
+		t.Fatalf("error = %q", err.Error())
+	}
+}
+
 func TestICMPPermissionErrorTextIsActionable(t *testing.T) {
 	err := ErrICMPPermission{Cause: errors.New("operation not permitted")}
 	text := err.Error()

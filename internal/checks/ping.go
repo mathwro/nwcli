@@ -80,6 +80,13 @@ func SummarizePing(attempts []PingAttempt) PingSummary {
 	return summary
 }
 
+func pingSummaryError(host string, summary PingSummary) error {
+	if summary.Sent > 0 && summary.Received == 0 {
+		return fmt.Errorf("no ping replies from %s", host)
+	}
+	return nil
+}
+
 func CheckPing(ctx context.Context, opts PingOptions) ([]PingAttempt, PingSummary, error) {
 	if opts.Count <= 0 {
 		opts.Count = 4
@@ -115,7 +122,8 @@ func CheckPing(ctx context.Context, opts PingOptions) ([]PingAttempt, PingSummar
 			return attempts, SummarizePing(attempts), err
 		}
 	}
-	return attempts, SummarizePing(attempts), nil
+	summary := SummarizePing(attempts)
+	return attempts, summary, pingSummaryError(opts.Host, summary)
 }
 
 func pingOnce(conn *icmp.PacketConn, addr *net.IPAddr, id, seq int, timeout time.Duration) (PingAttempt, error) {

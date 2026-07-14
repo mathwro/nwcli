@@ -14,24 +14,19 @@ type MenuItem struct {
 }
 
 type MenuModel struct {
-	ctx      context.Context
 	items    []MenuItem
 	selected int
+	chosen   bool
 	quitting bool
-	output   string
-	err      error
-}
-
-type actionDoneMsg struct {
-	output string
-	err    error
 }
 
 func NewMenuModel(items []MenuItem) MenuModel {
-	return MenuModel{ctx: context.Background(), items: items}
+	return MenuModel{items: items}
 }
 
 func (m MenuModel) Selected() int { return m.selected }
+
+func (m MenuModel) Chosen() bool { return m.chosen }
 
 func (m MenuModel) Quitting() bool { return m.quitting }
 
@@ -39,10 +34,6 @@ func (m MenuModel) Init() tea.Cmd { return nil }
 
 func (m MenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case actionDoneMsg:
-		m.output = msg.output
-		m.err = msg.err
-		return m, nil
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "up", "k":
@@ -54,19 +45,9 @@ func (m MenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selected++
 			}
 		case "enter":
-			if len(m.items) == 0 || m.items[m.selected].Run == nil {
-				m.quitting = true
-				return m, quitCmd()
-			}
-			item := m.items[m.selected]
-			ctx := m.ctx
-			return m, func() tea.Msg {
-				out, err := item.Run(ctx)
-				if err != nil {
-					return actionDoneMsg{err: err}
-				}
-				return actionDoneMsg{output: out}
-			}
+			m.chosen = true
+			m.quitting = true
+			return m, quitCmd()
 		case "q", "esc", "ctrl+c":
 			m.quitting = true
 			return m, quitCmd()
@@ -85,23 +66,34 @@ func (m MenuModel) View() tea.View {
 		}
 		fmt.Fprintf(&b, "%s %s\n", marker, item.Title)
 	}
-	if m.output != "" {
-		fmt.Fprintf(&b, "\n%s\n", m.output)
-	}
-	if m.err != nil {
-		fmt.Fprintf(&b, "\nerror: %v\n", m.err)
-	}
 	b.WriteString("\nq: quit\n")
 	return tea.NewView(b.String())
 }
 
 func RunMenu(ctx context.Context, items []MenuItem) error {
-	model := NewMenuModel(items)
-	if ctx != nil {
-		model.ctx = ctx
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	_, err := tea.NewProgram(model, tea.WithContext(ctx)).Run()
-	return err
+	for {
+		finalModel, err := tea.NewProgram(NewMenuModel(items), tea.WithContext(ctx)).Run()
+		if err != nil {
+			return err
+		}
+		menu, ok := finalModel.(MenuModel)
+		if !ok || !menu.chosen || menu.selected < 0 || menu.selected >= len(items) || items[menu.selected].Run == nil {
+			return nil
+		}
+		out, err := items[menu.selected].Run(ctx)
+		if out != "" {
+			fmt.Print(out)
+			if !strings.HasSuffix(out, "\n") {
+				fmt.Println()
+			}
+		}
+		if err != nil {
+			return err
+		}
+	}
 }
 
 func quitCmd() tea.Cmd {

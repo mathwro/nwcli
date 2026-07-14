@@ -88,6 +88,9 @@ func Plan(parentCIDR string, prefixes []int) (AllocationPlan, error) {
 			return AllocationPlan{}, fmt.Errorf("child prefix /%d outside IPv4 range /0-/32", prefix)
 		}
 		size := uint32(1) << uint32(32-prefix)
+		if offset%size != 0 {
+			return AllocationPlan{}, fmt.Errorf("child prefix /%d at position %d is not aligned after previous allocation", prefix, i+1)
+		}
 		if offset > parentSize || size > parentSize-offset {
 			return AllocationPlan{}, fmt.Errorf("child prefix /%d at position %d does not fit in %s", prefix, i+1, plan.Parent.String())
 		}

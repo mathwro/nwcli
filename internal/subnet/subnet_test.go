@@ -61,6 +61,16 @@ func TestPlanRejectsChildPrefixShorterThanParent(t *testing.T) {
 	}
 }
 
+func TestPlanRejectsUnalignedLargerBlockAfterSmallerBlock(t *testing.T) {
+	_, err := Plan("10.0.0.0/24", []int{27, 26})
+	if err == nil {
+		t.Fatal("Plan returned nil error, want CIDR alignment error")
+	}
+	if !strings.Contains(err.Error(), "not aligned") {
+		t.Fatalf("error = %q", err.Error())
+	}
+}
+
 func TestPlanRejectsAllocationsThatExceedParent(t *testing.T) {
 	_, err := Plan("10.0.0.0/30", []int{31, 31, 31})
 	if err == nil {
