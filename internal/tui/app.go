@@ -69,7 +69,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resultErr = msg.err
 		return m, nil
 	case tea.KeyPressMsg:
-		if isCtrlC(msg) {
+		if isCtrlC(msg) || keyName(msg) == "q" {
 			m.quitting = true
 			return m, quitCmd()
 		}

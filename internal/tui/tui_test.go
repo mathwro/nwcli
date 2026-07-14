@@ -59,6 +59,39 @@ func TestAppFormCtrlCQuits(t *testing.T) {
 	}
 }
 
+func TestAppFormQQuits(t *testing.T) {
+	model := NewAppModel(testActions(nil))
+	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	app := updated.(AppModel)
+	updated, cmd := app.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	app = updated.(AppModel)
+	if !app.Quitting() {
+		t.Fatal("Quitting = false, want true")
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want quit command")
+	}
+}
+
+func TestAppRunningQQuits(t *testing.T) {
+	model := NewAppModel(testActions(func(context.Context, map[string]string) (string, error) { return "ok", nil }))
+	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	app := updated.(AppModel)
+	updated, _ = app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	app = updated.(AppModel)
+	if app.Screen() != "running" {
+		t.Fatalf("Screen = %q, want running", app.Screen())
+	}
+	updated, cmd := app.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	app = updated.(AppModel)
+	if !app.Quitting() {
+		t.Fatal("Quitting = false, want true")
+	}
+	if cmd == nil {
+		t.Fatal("cmd = nil, want quit command")
+	}
+}
+
 func TestAppSubmitRunsActionAndShowsResultInView(t *testing.T) {
 	runValues := map[string]string{}
 	model := NewAppModel(testActions(func(_ context.Context, values map[string]string) (string, error) {
