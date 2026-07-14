@@ -224,14 +224,20 @@ func (m AppModel) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m AppModel) View() tea.View {
 	switch m.screen {
 	case screenForm:
-		return tea.NewView(m.renderForm())
+		return appView(m.renderForm())
 	case screenRunning:
-		return tea.NewView(m.renderRunning())
+		return appView(m.renderRunning())
 	case screenResult:
-		return tea.NewView(m.renderResult())
+		return appView(m.renderResult())
 	default:
-		return tea.NewView(m.renderMenu())
+		return appView(m.renderMenu())
 	}
+}
+
+func appView(content string) tea.View {
+	view := tea.NewView(content)
+	view.AltScreen = true
+	return view
 }
 
 func (m AppModel) renderMenu() string {

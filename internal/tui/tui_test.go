@@ -101,3 +101,11 @@ func TestAppResultEscapeReturnsToMenu(t *testing.T) {
 		t.Fatalf("Screen = %q, want menu", app.Screen())
 	}
 }
+
+func TestAppViewUsesAltScreen(t *testing.T) {
+	model := NewAppModel(testActions(nil))
+	view := model.View()
+	if !view.AltScreen {
+		t.Fatal("AltScreen = false, want true")
+	}
+}
