@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -14,9 +15,10 @@ import (
 )
 
 type PingOptions struct {
-	Host    string
-	Count   int
-	Timeout time.Duration
+	Host       string
+	Count      int
+	Timeout    time.Duration
+	OnProgress func(completed, total int)
 }
 
 type PingAttempt struct {
@@ -53,6 +55,27 @@ func IsICMPPermissionError(err error) bool {
 		return true
 	}
 	return looksLikePermissionError(err)
+}
+
+type pingSocket struct {
+	conn     *icmp.PacketConn
+	datagram bool
+}
+
+func listenPingSocket(listen func(network, address string) (*icmp.PacketConn, error)) (pingSocket, error) {
+	conn, datagramErr := listen("udp4", "0.0.0.0")
+	if datagramErr == nil {
+		return pingSocket{conn: conn, datagram: true}, nil
+	}
+
+	conn, err := listen("ip4:icmp", "0.0.0.0")
+	if err == nil {
+		return pingSocket{conn: conn}, nil
+	}
+	if looksLikePermissionError(err) {
+		return pingSocket{}, ErrICMPPermission{Cause: err}
+	}
+	return pingSocket{}, fmt.Errorf("listen ICMP (unprivileged: %v; raw: %w)", datagramErr, err)
 }
 
 func SummarizePing(attempts []PingAttempt) PingSummary {
@@ -98,14 +121,16 @@ func CheckPing(ctx context.Context, opts PingOptions) ([]PingAttempt, PingSummar
 	if err != nil {
 		return nil, PingSummary{}, fmt.Errorf("resolve %s: %w", opts.Host, err)
 	}
-	conn, err := icmp.ListenPacket("ip4:icmp", "0.0.0.0")
+	socket, err := listenPingSocket(icmp.ListenPacket)
 	if err != nil {
-		if looksLikePermissionError(err) {
-			return nil, PingSummary{}, ErrICMPPermission{Cause: err}
-		}
 		return nil, PingSummary{}, err
 	}
-	defer conn.Close()
+	defer socket.conn.Close()
+
+	var destination net.Addr = addr
+	if socket.datagram {
+		destination = &net.UDPAddr{IP: addr.IP, Zone: addr.Zone}
+	}
 
 	attempts := make([]PingAttempt, 0, opts.Count)
 	id := os.Getpid() & 0xffff
@@ -113,11 +138,17 @@ func CheckPing(ctx context.Context, opts PingOptions) ([]PingAttempt, PingSummar
 		select {
 		case <-ctx.Done():
 			attempts = append(attempts, PingAttempt{Seq: seq, Err: ctx.Err()})
+			if opts.OnProgress != nil {
+				opts.OnProgress(len(attempts), opts.Count)
+			}
 			return attempts, SummarizePing(attempts), ctx.Err()
 		default:
 		}
-		attempt, err := pingOnce(conn, addr, id, seq, opts.Timeout)
+		attempt, err := pingOnce(socket.conn, destination, id, seq, opts.Timeout, socket.datagram)
 		attempts = append(attempts, attempt)
+		if opts.OnProgress != nil {
+			opts.OnProgress(len(attempts), opts.Count)
+		}
 		if err != nil && IsICMPPermissionError(err) {
 			return attempts, SummarizePing(attempts), err
 		}
@@ -126,12 +157,13 @@ func CheckPing(ctx context.Context, opts PingOptions) ([]PingAttempt, PingSummar
 	return attempts, summary, pingSummaryError(opts.Host, summary)
 }
 
-func pingOnce(conn *icmp.PacketConn, addr *net.IPAddr, id, seq int, timeout time.Duration) (PingAttempt, error) {
+func pingOnce(conn *icmp.PacketConn, addr net.Addr, id, seq int, timeout time.Duration, ignoreReplyID bool) (PingAttempt, error) {
 	attempt := PingAttempt{Seq: seq}
+	data := []byte("nwcli")
 	message := icmp.Message{
 		Type: ipv4.ICMPTypeEcho,
 		Code: 0,
-		Body: &icmp.Echo{ID: id, Seq: seq, Data: []byte("nwcli")},
+		Body: &icmp.Echo{ID: id, Seq: seq, Data: data},
 	}
 	payload, err := message.Marshal(nil)
 	if err != nil {
@@ -165,7 +197,7 @@ func pingOnce(conn *icmp.PacketConn, addr *net.IPAddr, id, seq int, timeout time
 			continue
 		}
 		body, ok := reply.Body.(*icmp.Echo)
-		if reply.Type == ipv4.ICMPTypeEchoReply && ok && body.ID == id && body.Seq == seq {
+		if reply.Type == ipv4.ICMPTypeEchoReply && ok && body.Seq == seq && bytes.Equal(body.Data, data) && (ignoreReplyID || body.ID == id) {
 			attempt.Latency = time.Since(start)
 			return attempt, nil
 		}

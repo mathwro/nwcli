@@ -58,7 +58,7 @@ func interactiveActions() []tui.Action {
 				{Name: "count", Label: "Count", Default: "4"},
 				{Name: "timeout", Label: "Timeout", Default: "1s"},
 			},
-			Run: runInteractivePing,
+			RunProgress: runInteractivePing,
 		},
 		{
 			Title: "HTTP/S test",
@@ -91,7 +91,7 @@ func runInteractiveSubnet(_ context.Context, values map[string]string) (string, 
 	return out.String(), nil
 }
 
-func runInteractivePing(ctx context.Context, values map[string]string) (string, error) {
+func runInteractivePing(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (string, error) {
 	count, err := strconv.Atoi(values["count"])
 	if err != nil {
 		return "", fmt.Errorf("invalid count %q: %w", values["count"], err)
@@ -100,7 +100,21 @@ func runInteractivePing(ctx context.Context, values map[string]string) (string, 
 	if err != nil {
 		return "", fmt.Errorf("invalid timeout %q: %w", values["timeout"], err)
 	}
-	attempts, summary, err := checks.CheckPing(ctx, checks.PingOptions{Host: values["host"], Count: count, Timeout: timeout})
+	options := checks.PingOptions{
+		Host:    values["host"],
+		Count:   count,
+		Timeout: timeout,
+		OnProgress: func(current, total int) {
+			if report != nil {
+				report(tui.ProgressEvent{
+					Label:   fmt.Sprintf("Ping %d of %d", current, total),
+					Current: current,
+					Total:   total,
+				})
+			}
+		},
+	}
+	attempts, summary, err := checks.CheckPing(ctx, options)
 	var out bytes.Buffer
 	renderPing(&out, attempts, summary)
 	return out.String(), err

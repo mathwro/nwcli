@@ -73,4 +73,7 @@ func TestInteractiveActionsUseTUIAppFields(t *testing.T) {
 	if len(actions[0].Fields) != 2 || actions[0].Fields[0].Label != "Parent CIDR" || actions[0].Fields[1].Label != "Child prefixes" {
 		t.Fatalf("subnet fields = %#v", actions[0].Fields)
 	}
+	if actions[1].Title != "Ping test" || actions[1].RunProgress == nil {
+		t.Fatalf("ping action = %#v, want progress-enabled Ping test", actions[1])
+	}
 }

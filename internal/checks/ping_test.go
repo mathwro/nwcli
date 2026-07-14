@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/net/icmp"
 )
 
 func TestSummarizePingCalculatesLossAndLatency(t *testing.T) {
@@ -59,5 +61,56 @@ func TestIsICMPPermissionErrorDetectsWrappedPermissionError(t *testing.T) {
 	err := ErrICMPPermission{Cause: errors.New("permission denied")}
 	if !IsICMPPermissionError(err) {
 		t.Fatal("IsICMPPermissionError = false, want true")
+	}
+}
+
+func TestListenPingSocketPrefersUnprivilegedICMP(t *testing.T) {
+	want := new(icmp.PacketConn)
+	var networks []string
+	socket, err := listenPingSocket(func(network, _ string) (*icmp.PacketConn, error) {
+		networks = append(networks, network)
+		return want, nil
+	})
+	if err != nil {
+		t.Fatalf("listenPingSocket returned error: %v", err)
+	}
+	if socket.conn != want || !socket.datagram {
+		t.Fatalf("socket = %+v, want unprivileged datagram socket", socket)
+	}
+	if len(networks) != 1 || networks[0] != "udp4" {
+		t.Fatalf("listen networks = %v, want [udp4]", networks)
+	}
+}
+
+func TestListenPingSocketFallsBackToRawICMP(t *testing.T) {
+	want := new(icmp.PacketConn)
+	var networks []string
+	socket, err := listenPingSocket(func(network, _ string) (*icmp.PacketConn, error) {
+		networks = append(networks, network)
+		if network == "udp4" {
+			return nil, errors.New("datagram ICMP unavailable")
+		}
+		return want, nil
+	})
+	if err != nil {
+		t.Fatalf("listenPingSocket returned error: %v", err)
+	}
+	if socket.conn != want || socket.datagram {
+		t.Fatalf("socket = %+v, want raw socket", socket)
+	}
+	if len(networks) != 2 || networks[0] != "udp4" || networks[1] != "ip4:icmp" {
+		t.Fatalf("listen networks = %v, want [udp4 ip4:icmp]", networks)
+	}
+}
+
+func TestListenPingSocketReportsRawPermissionError(t *testing.T) {
+	_, err := listenPingSocket(func(network, _ string) (*icmp.PacketConn, error) {
+		if network == "udp4" {
+			return nil, errors.New("datagram ICMP unavailable")
+		}
+		return nil, errors.New("operation not permitted")
+	})
+	if !IsICMPPermissionError(err) {
+		t.Fatalf("listenPingSocket error = %v, want ICMP permission error", err)
 	}
 }

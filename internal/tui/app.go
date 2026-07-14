@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -17,18 +18,25 @@ const (
 )
 
 type AppModel struct {
-	ctx          context.Context
-	actions      []Action
-	screen       string
-	selected     int
-	activeField  int
-	input        textinput.Model
-	values       map[string]string
-	resultTitle  string
-	resultOutput string
-	resultErr    error
-	quitting     bool
+	ctx            context.Context
+	actions        []Action
+	screen         string
+	selected       int
+	activeField    int
+	input          textinput.Model
+	values         map[string]string
+	width          int
+	height         int
+	progress       ProgressModel
+	actionEvents   <-chan tea.Msg
+	resultTitle    string
+	resultOutput   string
+	resultErr      error
+	resultViewport viewport.Model
+	quitting       bool
 }
+
+type actionStartedMsg struct{}
 
 type actionResultMsg struct {
 	title  string
@@ -37,7 +45,16 @@ type actionResultMsg struct {
 }
 
 func NewAppModel(actions []Action) AppModel {
-	return AppModel{ctx: context.Background(), actions: actions, screen: screenMenu}
+	resultViewport := viewport.New(viewport.WithWidth(74), viewport.WithHeight(16))
+	resultViewport.SoftWrap = true
+	return AppModel{
+		ctx:            context.Background(),
+		actions:        actions,
+		screen:         screenMenu,
+		width:          80,
+		height:         24,
+		resultViewport: resultViewport,
+	}
 }
 
 func RunApp(ctx context.Context, actions []Action) error {
@@ -62,11 +79,26 @@ func (m AppModel) Init() tea.Cmd { return nil }
 
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		m.resizeResultViewport()
+	case actionStartedMsg:
+		return m, waitActionEvent(m.actionEvents)
+	case ProgressEvent:
+		if m.screen != screenRunning {
+			return m, nil
+		}
+		updated, cmd := m.progress.Update(msg)
+		m.progress = updated.(ProgressModel)
+		return m, tea.Batch(cmd, waitActionEvent(m.actionEvents))
 	case actionResultMsg:
 		m.screen = screenResult
+		m.actionEvents = nil
 		m.resultTitle = msg.title
 		m.resultOutput = msg.output
 		m.resultErr = msg.err
+		m.setResultContent()
 		return m, nil
 	case tea.KeyPressMsg:
 		if isCtrlC(msg) || keyName(msg) == "q" {
@@ -81,6 +113,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case screenForm:
 		return m.updateForm(msg)
 	case screenRunning:
+		if m.actionEvents != nil {
+			updated, cmd := m.progress.Update(msg)
+			m.progress = updated.(ProgressModel)
+			return m, cmd
+		}
 		return m, nil
 	case screenResult:
 		return m.updateResult(msg)
@@ -197,28 +234,67 @@ func (m AppModel) submitForm() (tea.Model, tea.Cmd) {
 		values[key] = value
 	}
 	m.screen = screenRunning
+	if action.RunProgress != nil {
+		events := make(chan tea.Msg, 1)
+		m.actionEvents = events
+		m.progress = NewProgressModel(action.Title)
+		m.progress.label = "Starting..."
+		return m, tea.Batch(m.progress.Init(), startProgressAction(m.ctx, action, values, events))
+	}
 	return m, func() tea.Msg {
 		out, err := action.Run(m.ctx, values)
 		return actionResultMsg{title: action.Title, output: out, err: err}
 	}
 }
 
+func startProgressAction(ctx context.Context, action Action, values map[string]string, events chan<- tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		go func() {
+			report := func(event ProgressEvent) {
+				select {
+				case events <- event:
+				case <-ctx.Done():
+				}
+			}
+			out, err := action.RunProgress(ctx, values, report)
+			select {
+			case events <- actionResultMsg{title: action.Title, output: out, err: err}:
+			case <-ctx.Done():
+			}
+		}()
+		return actionStartedMsg{}
+	}
+}
+
+func waitActionEvent(events <-chan tea.Msg) tea.Cmd {
+	if events == nil {
+		return nil
+	}
+	return func() tea.Msg { return <-events }
+}
+
 func (m AppModel) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
-	key, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return m, nil
+	if key, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyName(key) {
+		case "esc", "enter", "backspace":
+			m.screen = screenMenu
+			m.resultTitle = ""
+			m.resultOutput = ""
+			m.resultErr = nil
+			m.resultViewport.SetContent("")
+			m.resultViewport.GotoTop()
+			return m, nil
+		case "home":
+			m.resultViewport.GotoTop()
+			return m, nil
+		case "end":
+			m.resultViewport.GotoBottom()
+			return m, nil
+		}
 	}
-	switch keyName(key) {
-	case "esc", "enter", "backspace":
-		m.screen = screenMenu
-		m.resultTitle = ""
-		m.resultOutput = ""
-		m.resultErr = nil
-	case "q":
-		m.quitting = true
-		return m, quitCmd()
-	}
-	return m, nil
+	var cmd tea.Cmd
+	m.resultViewport, cmd = m.resultViewport.Update(msg)
+	return m, cmd
 }
 
 func (m AppModel) View() tea.View {
@@ -281,7 +357,32 @@ func (m AppModel) renderForm() string {
 	return panelStyle.Render(b.String())
 }
 
+func (m *AppModel) resizeResultViewport() {
+	m.resultViewport.SetWidth(max(1, m.width-panelStyle.GetHorizontalFrameSize()))
+	m.resultViewport.SetHeight(max(1, m.height-panelStyle.GetVerticalFrameSize()-4))
+}
+
+func (m *AppModel) setResultContent() {
+	var b strings.Builder
+	if m.resultErr != nil {
+		b.WriteString(errorStyle.Render("Error: "))
+		b.WriteString(m.resultErr.Error())
+		b.WriteString("\n\n")
+	}
+	if m.resultOutput != "" {
+		b.WriteString(strings.TrimSuffix(m.resultOutput, "\n"))
+	} else if m.resultErr == nil {
+		b.WriteString(successStyle.Render("Done"))
+	}
+	m.resultViewport.SetContent(b.String())
+	m.resultViewport.GotoTop()
+}
+
 func (m AppModel) renderRunning() string {
+	if m.actionEvents != nil {
+		content := m.progress.View().Content + "\n" + mutedStyle.Render("q quit")
+		return panelStyle.Render(content)
+	}
 	title := "Running"
 	if m.selected >= 0 && m.selected < len(m.actions) {
 		title = m.actions[m.selected].Title
@@ -294,22 +395,13 @@ func (m AppModel) renderResult() string {
 	var b strings.Builder
 	b.WriteString(titleStyle.Render(m.resultTitle + " result"))
 	b.WriteString("\n\n")
-	if m.resultErr != nil {
-		b.WriteString(errorStyle.Render("Error: "))
-		b.WriteString(m.resultErr.Error())
-		b.WriteString("\n\n")
+	b.WriteString(m.resultViewport.View())
+	b.WriteString("\n\n")
+	if m.resultViewport.TotalLineCount() > m.resultViewport.VisibleLineCount() {
+		b.WriteString(mutedStyle.Render("↑/↓ scroll • pgup/pgdn page • esc back • q quit"))
+	} else {
+		b.WriteString(mutedStyle.Render("esc back • q quit"))
 	}
-	if m.resultOutput != "" {
-		b.WriteString(m.resultOutput)
-		if !strings.HasSuffix(m.resultOutput, "\n") {
-			b.WriteByte('\n')
-		}
-	} else if m.resultErr == nil {
-		b.WriteString(successStyle.Render("Done"))
-		b.WriteByte('\n')
-	}
-	b.WriteString("\n")
-	b.WriteString(mutedStyle.Render("esc back • q quit"))
 	return panelStyle.Render(b.String())
 }
 

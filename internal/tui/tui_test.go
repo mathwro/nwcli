@@ -142,3 +142,53 @@ func TestAppViewUsesAltScreen(t *testing.T) {
 		t.Fatal("AltScreen = false, want true")
 	}
 }
+
+func TestAppResultViewportScrollsLongOutput(t *testing.T) {
+	output := "first\n" + strings.Repeat("middle\n", 48) + "last"
+	model := NewAppModel(testActions(func(context.Context, map[string]string) (string, error) {
+		return output, nil
+	}))
+	updated, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
+	updated, _ = updated.(AppModel).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, cmd := updated.(AppModel).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, _ = updated.(AppModel).Update(cmd())
+	app := updated.(AppModel)
+
+	view := app.View().Content
+	if !strings.Contains(view, "first") {
+		t.Fatalf("initial result view missing first line:\n%s", view)
+	}
+	if strings.Contains(view, "last") {
+		t.Fatalf("initial result view contains last line without scrolling:\n%s", view)
+	}
+
+	updated, _ = app.Update(tea.KeyPressMsg{Code: tea.KeyEnd})
+	view = updated.(AppModel).View().Content
+	if !strings.Contains(view, "last") {
+		t.Fatalf("scrolled result view missing last line:\n%s", view)
+	}
+}
+
+func TestAppRunningViewShowsActionProgress(t *testing.T) {
+	actions := []Action{{
+		Title:  "Ping test",
+		Fields: []Field{{Name: "count", Label: "Count", Default: "50"}},
+		RunProgress: func(context.Context, map[string]string, func(ProgressEvent)) (string, error) {
+			return "done", nil
+		},
+	}}
+	model := NewAppModel(actions)
+	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, cmd := updated.(AppModel).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("cmd = nil, want progress action command")
+	}
+	updated, _ = updated.(AppModel).Update(ProgressEvent{Label: "Ping 2 of 50", Current: 2, Total: 50})
+	app := updated.(AppModel)
+	if app.Screen() != "running" {
+		t.Fatalf("Screen = %q, want running", app.Screen())
+	}
+	if view := app.View().Content; !strings.Contains(view, "Ping 2 of 50") {
+		t.Fatalf("running view missing progress label:\n%s", view)
+	}
+}
