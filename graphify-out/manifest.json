@@ -20,13 +20,13 @@
     "semantic_hash": "da54c0ffaf8cc7cf650d376793de7c11"
   },
   "cmd/ping.go": {
-    "mtime": 1784148895.3720243,
-    "ast_hash": "9eb7493fe50bcd78ab233dceb5e24d9f",
+    "mtime": 1784153372.2563996,
+    "ast_hash": "2e5c40689efce9c1513f95e8bbd34c7a",
     "semantic_hash": ""
   },
   "cmd/root.go": {
-    "mtime": 1784150621.1772501,
-    "ast_hash": "97c755bb26dbec93e90396a3c373ca05",
+    "mtime": 1784153372.2658563,
+    "ast_hash": "87323982b84f20487b5b2bcd00742fba",
     "semantic_hash": ""
   },
   "cmd/subnet.go": {
@@ -50,14 +50,14 @@
     "semantic_hash": "474e9441abd22d3f68f5254a393f0dd0"
   },
   "internal/checks/ping.go": {
-    "mtime": 1784069027.16197,
-    "ast_hash": "27f5d09d653a95688eb3c6d634336382",
-    "semantic_hash": "27f5d09d653a95688eb3c6d634336382"
+    "mtime": 1784153372.2871652,
+    "ast_hash": "77d80fcbc1ed643a506562a9fcfcb27e",
+    "semantic_hash": ""
   },
   "internal/checks/ping_test.go": {
-    "mtime": 1784066814.0613732,
-    "ast_hash": "a55304b05c8bca4b03cfa25d07e63768",
-    "semantic_hash": "a55304b05c8bca4b03cfa25d07e63768"
+    "mtime": 1784152844.0634193,
+    "ast_hash": "885732216147fb26e7862372b521ac88",
+    "semantic_hash": ""
   },
   "internal/subnet/render.go": {
     "mtime": 1784065741.92134,
@@ -90,9 +90,9 @@
     "semantic_hash": "a3238e5177c59545d610752baf79d162"
   },
   "internal/tui/progress.go": {
-    "mtime": 1784065741.9493034,
-    "ast_hash": "aae78aa357625b876b68606ffc04bd71",
-    "semantic_hash": "aae78aa357625b876b68606ffc04bd71"
+    "mtime": 1784153253.948608,
+    "ast_hash": "2bc6a4c8821a14954406cfcc5d9d834b",
+    "semantic_hash": ""
   },
   "internal/tui/prompt.go": {
     "mtime": 1784065741.9534893,
@@ -105,8 +105,8 @@
     "semantic_hash": ""
   },
   "internal/tui/tui_test.go": {
-    "mtime": 1784150621.6259978,
-    "ast_hash": "a350e29baeb64d4b99a53192c56fb951",
+    "mtime": 1784152899.7655778,
+    "ast_hash": "238b95988ae065aa22e0590456aa47b8",
     "semantic_hash": ""
   },
   "main.go": {
@@ -140,8 +140,8 @@
     "semantic_hash": ""
   },
   "cmd/interactive_actions_test.go": {
-    "mtime": 1784150621.1694286,
-    "ast_hash": "ed57eda4dcdcb3d34322f29a0b5e0124",
+    "mtime": 1784152970.4639494,
+    "ast_hash": "f60c6980946d02f738c4ffbd0591cd50",
     "semantic_hash": ""
   },
   "cmd/output.go": {
@@ -235,8 +235,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1784150621.160161,
-    "ast_hash": "18cab42c67bedc55c3e476f97f8521ef",
+    "mtime": 1784153734.2249901,
+    "ast_hash": "debbbaf6719d18529bb45fc140d69f00",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-07-14-compact-tui-redesign.md": {
@@ -262,6 +262,11 @@
   "internal/tui/result.go": {
     "mtime": 1784150621.607372,
     "ast_hash": "0bd62d3778efc5480911efd331dce2cc",
+    "semantic_hash": ""
+  },
+  "cmd/ping_test.go": {
+    "mtime": 1784153311.626621,
+    "ast_hash": "1ed23573bd9505e4a7bad480279d3599",
     "semantic_hash": ""
   }
 }
