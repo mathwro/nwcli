@@ -14,6 +14,8 @@ type ProgressEvent struct {
 	Label   string
 	Current int
 	Total   int
+	Tone    ResultTone
+	Fields  []ResultField
 	Done    bool
 	Err     error
 }
@@ -25,6 +27,8 @@ type ProgressModel struct {
 	label   string
 	current int
 	total   int
+	tone    ResultTone
+	fields  []ResultField
 	done    bool
 	err     error
 }
@@ -47,6 +51,8 @@ func (m ProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.label = msg.Label
 		m.current = msg.Current
 		m.total = msg.Total
+		m.tone = msg.Tone
+		m.fields = msg.Fields
 		m.err = msg.Err
 		m.done = msg.Done
 		if m.total > 0 {
@@ -68,18 +74,22 @@ func (m ProgressModel) View() tea.View {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n\n", m.title)
 	if !m.done {
-		fmt.Fprintf(&b, "%s %s\n", m.spinner.View(), m.label)
+		fmt.Fprintf(&b, "%s %s\n", m.spinner.View(), resultToneStyle(m.tone).Render(m.label))
 	} else if m.err != nil {
 		fmt.Fprintf(&b, "failed: %v\n", m.err)
 	} else {
 		fmt.Fprintf(&b, "done: %s\n", m.label)
 	}
-	percent := 0.0
-	if m.total > 0 {
-		percent = float64(m.current) / float64(m.total)
+	if len(m.fields) > 0 {
+		b.WriteByte('\n')
+		b.WriteString(renderResultFields(m.fields))
 	}
-	b.WriteString(m.bar.ViewAs(percent))
-	b.WriteByte('\n')
+	if m.total > 0 {
+		percent := float64(m.current) / float64(m.total)
+		b.WriteByte('\n')
+		b.WriteString(m.bar.ViewAs(percent))
+		b.WriteByte('\n')
+	}
 	return tea.NewView(b.String())
 }
 

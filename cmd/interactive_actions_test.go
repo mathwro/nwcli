@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/mathwro/nwcli/internal/checks"
 	"github.com/mathwro/nwcli/internal/tui"
 )
 
@@ -25,6 +26,15 @@ func TestInteractiveActionsExposeNewDiagnosticsWithDescriptions(t *testing.T) {
 		if byTitle[title].RunProgress == nil {
 			t.Fatalf("action %q does not use progress UI", title)
 		}
+	}
+	foundContinuous := false
+	for _, field := range byTitle["Ping test"].Fields {
+		if field.Name == "continuous" && field.Default == "false" && field.Validate != nil {
+			foundContinuous = true
+		}
+	}
+	if !foundContinuous {
+		t.Fatal("Ping test action missing validated continuous field")
 	}
 }
 
@@ -67,6 +77,41 @@ func TestInteractiveSubnetBuildsStructuredAllocationResult(t *testing.T) {
 	}
 	if result.Allocation.Available == nil || result.Allocation.Available.Size != 160 {
 		t.Fatalf("Available = %#v, want 160 addresses", result.Allocation.Available)
+	}
+}
+
+func TestInteractiveContinuousPingReportsLiveLoss(t *testing.T) {
+	original := continuousPingCheck
+	t.Cleanup(func() { continuousPingCheck = original })
+	continuousPingCheck = func(_ context.Context, opts checks.PingOptions) (checks.PingSummary, error) {
+		summary := checks.PingSummary{Sent: 4, Received: 3, LossPercent: 25}
+		opts.OnUpdate(checks.PingUpdate{
+			Attempt: checks.PingAttempt{Seq: 4, Err: context.DeadlineExceeded},
+			Summary: summary,
+		})
+		return summary, nil
+	}
+	var events []tui.ProgressEvent
+	_, err := runInteractivePing(context.Background(), map[string]string{
+		"host":       "127.0.0.1",
+		"count":      "4",
+		"timeout":    "1s",
+		"continuous": "true",
+	}, func(event tui.ProgressEvent) {
+		events = append(events, event)
+	})
+	if err != nil {
+		t.Fatalf("runInteractivePing returned error: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("len(events) = %d, want 1", len(events))
+	}
+	event := events[0]
+	if event.Total != 0 || event.Current != 4 || event.Tone != tui.ToneDanger {
+		t.Fatalf("event = %#v", event)
+	}
+	if event.Label == "" || len(event.Fields) != 4 || event.Fields[2].Label != "Dropped" || event.Fields[2].Value != "1" || event.Fields[3].Value != "25.0%" {
+		t.Fatalf("event fields = %#v", event)
 	}
 }
 

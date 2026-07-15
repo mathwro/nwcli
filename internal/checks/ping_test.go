@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -112,5 +113,54 @@ func TestListenPingSocketReportsRawPermissionError(t *testing.T) {
 	})
 	if !IsICMPPermissionError(err) {
 		t.Fatalf("listenPingSocket error = %v, want ICMP permission error", err)
+	}
+}
+
+func TestPingTrackerUpdatesLiveDropCountAndPercentage(t *testing.T) {
+	var tracker pingTracker
+	first := tracker.Add(PingAttempt{Seq: 1, Latency: 10 * time.Millisecond})
+	dropped := tracker.Add(PingAttempt{Seq: 2, Err: errors.New("timeout")})
+	third := tracker.Add(PingAttempt{Seq: 3, Latency: 20 * time.Millisecond})
+
+	if first.Sent != 1 || first.Received != 1 || first.LossPercent != 0 {
+		t.Fatalf("first summary = %+v", first)
+	}
+	if dropped.Sent != 2 || dropped.Received != 1 || dropped.LossPercent != 50 {
+		t.Fatalf("dropped summary = %+v, want one of two dropped", dropped)
+	}
+	if third.Sent != 3 || third.Received != 2 || third.LossPercent < 33.3 || third.LossPercent > 33.4 {
+		t.Fatalf("third summary = %+v, want one of three dropped", third)
+	}
+	if third.Min != 10*time.Millisecond || third.Avg != 15*time.Millisecond || third.Max != 20*time.Millisecond {
+		t.Fatalf("third latency summary = %+v", third)
+	}
+}
+
+func TestRunContinuousPingStreamsEveryAttemptUntilCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var updates []PingUpdate
+	summary, err := runContinuousPing(ctx, 0, func(seq int) (PingAttempt, error) {
+		if seq == 2 {
+			err := errors.New("timeout")
+			return PingAttempt{Seq: seq, Err: err}, err
+		}
+		return PingAttempt{Seq: seq, Latency: time.Duration(seq) * time.Millisecond}, nil
+	}, func(update PingUpdate) {
+		updates = append(updates, update)
+		if update.Summary.Sent == 3 {
+			cancel()
+		}
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("runContinuousPing error = %v, want context canceled", err)
+	}
+	if len(updates) != 3 {
+		t.Fatalf("len(updates) = %d, want 3", len(updates))
+	}
+	if updates[1].Attempt.Err == nil || updates[1].Summary.Sent-updates[1].Summary.Received != 1 || updates[1].Summary.LossPercent != 50 {
+		t.Fatalf("drop update = %+v", updates[1])
+	}
+	if summary.Sent != 3 || summary.Received != 2 {
+		t.Fatalf("final summary = %+v", summary)
 	}
 }

@@ -7,7 +7,7 @@
 - IPv4 subnet carving with a visual allocation map.
 - IPv4 and IPv6 CIDR inspection, containment, overlap, splitting, and summarization.
 - DNS record diagnostics with optional resolver selection.
-- ICMP ping, TCP connection, TLS certificate, and HTTP/S endpoint checks.
+- ICMP ping with finite summaries or continuous live packet-loss statistics, plus TCP, TLS certificate, and HTTP/S endpoint checks.
 - Bounded concurrent DNS, TCP, and TLS batch checks.
 - Versioned JSON output and stable automation exit codes.
 - Searchable Bubble Tea TUI with structured result summaries and scrollable details.
@@ -140,6 +140,8 @@ Every command supports `--output text` (default) or a versioned JSON envelope:
 nwcli --output json tcp example.com:443
 ```
 
+Continuous ping is a streaming text mode and rejects `--output json`.
+
 Exit codes are stable for automation:
 
 - `0`: success and healthy.
@@ -160,11 +162,21 @@ A completed HTTP response is reachable. Status codes `200` through `399` are hea
 
 ### Ping check
 
-Run an ICMP ping check:
+Run a finite ICMP ping check:
 
 ```bash
-nwcli ping 127.0.0.1 --count 1 --timeout 1s
+nwcli ping 127.0.0.1 --count 4 --timeout 1s
 ```
+
+Stream replies, drops, cumulative counts, and packet-loss percentage until interrupted:
+
+```bash
+nwcli ping 127.0.0.1 --continuous --timeout 1s
+# Short form:
+nwcli ping 127.0.0.1 -c
+```
+
+Press `ctrl+c` to stop cleanly and print the final summary. In the interactive TUI, set the Ping test's `Continuous` field to `true`; the running view updates Sent, Received, Dropped, and Loss fields after every attempt.
 
 ICMP may require elevated permissions or OS capability configuration. `nwcli` does not silently fall back to TCP because that would make `ping` mean two different things.
 

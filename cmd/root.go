@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"time"
@@ -38,7 +39,9 @@ func NewRootCommand(menuRunner func(context.Context) error) *cobra.Command {
 }
 
 func Execute() {
-	if err := NewRootCommand(runInteractiveMenu).Execute(); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	if err := NewRootCommand(runInteractiveMenu).ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(ExitCode(err))
 	}
@@ -74,6 +77,7 @@ func interactiveActions() []tui.Action {
 				{Name: "host", Label: "Host", Default: "127.0.0.1", Validate: validateRequired},
 				{Name: "count", Label: "Count", Default: "4", Validate: validatePositiveInteger},
 				{Name: "timeout", Label: "Timeout", Default: "1s", Validate: validateDuration},
+				{Name: "continuous", Label: "Continuous", Default: "false", Validate: validateBoolean},
 			},
 			RunProgress: runInteractivePing,
 		},
@@ -203,21 +207,31 @@ func runInteractivePing(ctx context.Context, values map[string]string, report fu
 	if err != nil {
 		return tui.Result{}, fmt.Errorf("invalid timeout %q: %w", values["timeout"], err)
 	}
+	continuous := false
+	if values["continuous"] != "" {
+		continuous, err = strconv.ParseBool(values["continuous"])
+		if err != nil {
+			return tui.Result{}, fmt.Errorf("invalid continuous value %q: %w", values["continuous"], err)
+		}
+	}
 	options := checks.PingOptions{
 		Host:    values["host"],
 		Count:   count,
 		Timeout: timeout,
-		OnProgress: func(current, total int) {
+		OnUpdate: func(update checks.PingUpdate) {
 			if report != nil {
-				report(tui.ProgressEvent{
-					Label:   fmt.Sprintf("Ping %d of %d", current, total),
-					Current: current,
-					Total:   total,
-				})
+				report(pingProgressEvent(update, count, continuous))
 			}
 		},
 	}
-	attempts, summary, checkErr := pingCheck(ctx, options)
+	var attempts []checks.PingAttempt
+	var summary checks.PingSummary
+	var checkErr error
+	if continuous {
+		summary, checkErr = continuousPingCheck(ctx, options)
+	} else {
+		attempts, summary, checkErr = pingCheck(ctx, options)
+	}
 	var out bytes.Buffer
 	renderPing(&out, attempts, summary)
 	attemptLines := make([]string, len(attempts))
@@ -235,7 +249,7 @@ func runInteractivePing(ctx context.Context, values map[string]string, report fu
 	if summary.Received == 0 {
 		lossTone = tui.ToneDanger
 	}
-	return tui.Result{
+	result := tui.Result{
 		Headline: values["host"],
 		Summary:  fmt.Sprintf("%d of %d replies · %.1f%% loss", summary.Received, summary.Sent, summary.LossPercent),
 		Text:     out.String(),
@@ -247,8 +261,41 @@ func runInteractivePing(ctx context.Context, values map[string]string, report fu
 			{Label: "Average", Value: summary.Avg.Round(time.Millisecond).String()},
 			{Label: "Maximum", Value: summary.Max.Round(time.Millisecond).String()},
 		},
-		Sections: []tui.ResultSection{{Title: "Attempts", Lines: attemptLines}},
-	}, pingResultError(checkErr)
+	}
+	if len(attemptLines) > 0 {
+		result.Sections = []tui.ResultSection{{Title: "Attempts", Lines: attemptLines}}
+	}
+	return result, pingResultError(checkErr)
+}
+
+func pingProgressEvent(update checks.PingUpdate, count int, continuous bool) tui.ProgressEvent {
+	dropped := update.Summary.Sent - update.Summary.Received
+	tone := tui.ToneSuccess
+	label := fmt.Sprintf("Reply #%d · %s", update.Attempt.Seq, update.Attempt.Latency.Round(time.Millisecond))
+	if update.Attempt.Err != nil {
+		tone = tui.ToneDanger
+		label = fmt.Sprintf("DROP #%d · %v", update.Attempt.Seq, update.Attempt.Err)
+	}
+	lossTone := tui.ToneSuccess
+	if dropped > 0 {
+		lossTone = tui.ToneDanger
+	}
+	total := count
+	if continuous {
+		total = 0
+	}
+	return tui.ProgressEvent{
+		Label:   label,
+		Current: update.Summary.Sent,
+		Total:   total,
+		Tone:    tone,
+		Fields: []tui.ResultField{
+			{Label: "Sent", Value: strconv.Itoa(update.Summary.Sent)},
+			{Label: "Received", Value: strconv.Itoa(update.Summary.Received), Tone: tui.ToneSuccess},
+			{Label: "Dropped", Value: strconv.Itoa(dropped), Tone: lossTone},
+			{Label: "Loss", Value: fmt.Sprintf("%.1f%%", update.Summary.LossPercent), Tone: lossTone},
+		},
+	}
 }
 
 func runInteractiveHTTP(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (tui.Result, error) {

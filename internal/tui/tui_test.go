@@ -226,6 +226,36 @@ func TestAppRunningViewShowsActionProgress(t *testing.T) {
 	}
 }
 
+func TestAppRunningViewHighlightsLivePacketLoss(t *testing.T) {
+	actions := []Action{{
+		Title:  "Continuous ping",
+		Fields: []Field{{Name: "host", Label: "Host", Default: "127.0.0.1"}},
+		RunProgress: func(context.Context, map[string]string, func(ProgressEvent)) (Result, error) {
+			return Result{}, nil
+		},
+	}}
+	model := NewAppModel(actions)
+	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, _ = updated.(AppModel).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, _ = updated.(AppModel).Update(ProgressEvent{
+		Label:   "DROP #4 · request timed out",
+		Current: 4,
+		Tone:    ToneDanger,
+		Fields: []ResultField{
+			{Label: "Sent", Value: "4"},
+			{Label: "Received", Value: "3", Tone: ToneSuccess},
+			{Label: "Dropped", Value: "1", Tone: ToneDanger},
+			{Label: "Loss", Value: "25.0%", Tone: ToneDanger},
+		},
+	})
+	view := updated.(AppModel).View().Content
+	for _, fragment := range []string{"DROP #4", "Sent", "4", "Received", "3", "Dropped", "1", "Loss", "25.0%"} {
+		if !strings.Contains(view, fragment) {
+			t.Fatalf("live ping view missing %q:\n%s", fragment, view)
+		}
+	}
+}
+
 func TestAppMenuUsesActionDescriptions(t *testing.T) {
 	actions := testActions(nil)
 	actions[0].Description = "Allocate child networks and see remaining space"

@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -10,15 +12,39 @@ import (
 )
 
 var pingCheck = checks.CheckPing
+var continuousPingCheck = checks.CheckPingContinuous
 
 func newPingCommand() *cobra.Command {
 	var count int
 	var timeout time.Duration
+	var continuous bool
 	cmd := &cobra.Command{
 		Use:   "ping HOST",
 		Short: "Run an ICMP ping check",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if continuous {
+				format, flagErr := cmd.Root().PersistentFlags().GetString("output")
+				if flagErr != nil {
+					return flagErr
+				}
+				if format == "json" {
+					return newCommandError(exitUsage, fmt.Errorf("continuous ping supports text output only"))
+				}
+				summary, err := continuousPingCheck(cmd.Context(), checks.PingOptions{
+					Host:    args[0],
+					Timeout: timeout,
+					OnUpdate: func(update checks.PingUpdate) {
+						renderPingUpdate(cmd.OutOrStdout(), update)
+					},
+				})
+				fmt.Fprint(cmd.OutOrStdout(), "summary: ")
+				renderPing(cmd.OutOrStdout(), nil, summary)
+				if errors.Is(err, context.Canceled) {
+					return nil
+				}
+				return pingResultError(err)
+			}
 			attempts, summary, err := pingCheck(cmd.Context(), checks.PingOptions{Host: args[0], Count: count, Timeout: timeout})
 			runErr := pingResultError(err)
 			return emitCommandResult(cmd, "ping", pingOutput(args[0], attempts, summary), runErr, func(w io.Writer) error {
@@ -29,6 +55,7 @@ func newPingCommand() *cobra.Command {
 	}
 	cmd.Flags().IntVar(&count, "count", 4, "number of ICMP echo requests")
 	cmd.Flags().DurationVar(&timeout, "timeout", time.Second, "timeout per request")
+	cmd.Flags().BoolVarP(&continuous, "continuous", "c", false, "ping until canceled and stream live packet-loss statistics")
 	return cmd
 }
 
@@ -41,6 +68,17 @@ func renderPing(w io.Writer, attempts []checks.PingAttempt, summary checks.PingS
 		fmt.Fprintf(w, "seq=%d latency=%s\n", attempt.Seq, attempt.Latency.Round(time.Millisecond))
 	}
 	fmt.Fprintf(w, "sent=%d received=%d loss=%.1f%% min=%s avg=%s max=%s\n", summary.Sent, summary.Received, summary.LossPercent, summary.Min.Round(time.Millisecond), summary.Avg.Round(time.Millisecond), summary.Max.Round(time.Millisecond))
+}
+
+func renderPingUpdate(w io.Writer, update checks.PingUpdate) {
+	dropped := update.Summary.Sent - update.Summary.Received
+	if update.Attempt.Err != nil {
+		fmt.Fprintf(w, "seq=%d DROP error=%v sent=%d received=%d dropped=%d loss=%.1f%%\n",
+			update.Attempt.Seq, update.Attempt.Err, update.Summary.Sent, update.Summary.Received, dropped, update.Summary.LossPercent)
+		return
+	}
+	fmt.Fprintf(w, "seq=%d latency=%s sent=%d received=%d dropped=%d loss=%.1f%%\n",
+		update.Attempt.Seq, update.Attempt.Latency.Round(time.Millisecond), update.Summary.Sent, update.Summary.Received, dropped, update.Summary.LossPercent)
 }
 
 func pingResultError(err error) error {
