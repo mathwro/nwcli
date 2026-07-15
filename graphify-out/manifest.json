@@ -25,8 +25,8 @@
     "semantic_hash": ""
   },
   "cmd/root.go": {
-    "mtime": 1784153372.2658563,
-    "ast_hash": "87323982b84f20487b5b2bcd00742fba",
+    "mtime": 1784154746.552582,
+    "ast_hash": "8de377168a4de560b5235fe37189c84d",
     "semantic_hash": ""
   },
   "cmd/subnet.go": {
@@ -75,13 +75,13 @@
     "semantic_hash": "77238a1ea6dc888b000cd9386844b3ba"
   },
   "internal/tui/action.go": {
-    "mtime": 1784150621.5907874,
-    "ast_hash": "52577cd685fde83a4e135f44832f5cd2",
+    "mtime": 1784154665.3500924,
+    "ast_hash": "49226ec4166e92f167842e49c5d6d1c0",
     "semantic_hash": ""
   },
   "internal/tui/app.go": {
-    "mtime": 1784150621.6001205,
-    "ast_hash": "2e64e667cdf352869e0d9a9be9ebc984",
+    "mtime": 1784154954.4128664,
+    "ast_hash": "f20699cfedd7af8315bd8b6a4e146677",
     "semantic_hash": ""
   },
   "internal/tui/menu.go": {
@@ -105,8 +105,8 @@
     "semantic_hash": ""
   },
   "internal/tui/tui_test.go": {
-    "mtime": 1784152899.7655778,
-    "ast_hash": "238b95988ae065aa22e0590456aa47b8",
+    "mtime": 1784154872.3244064,
+    "ast_hash": "ffdfb116f677cd6ee598960be31e7a32",
     "semantic_hash": ""
   },
   "main.go": {
@@ -140,8 +140,8 @@
     "semantic_hash": ""
   },
   "cmd/interactive_actions_test.go": {
-    "mtime": 1784152970.4639494,
-    "ast_hash": "f60c6980946d02f738c4ffbd0591cd50",
+    "mtime": 1784154599.9536576,
+    "ast_hash": "0d60303e8d926327d12105c522250cf0",
     "semantic_hash": ""
   },
   "cmd/output.go": {
@@ -230,13 +230,13 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1784150621.154392,
-    "ast_hash": "285b4a77fed651ae270f1dc82cb76ef6",
+    "mtime": 1784155570.945925,
+    "ast_hash": "abbf7091ccaddb962a0c480d79dca61b",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1784153734.2249901,
-    "ast_hash": "debbbaf6719d18529bb45fc140d69f00",
+    "mtime": 1784155478.1304672,
+    "ast_hash": "91403350f65d97e11d6c8f6e532b6e83",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-07-14-compact-tui-redesign.md": {
