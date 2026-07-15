@@ -49,6 +49,7 @@ Keyboard shortcuts:
 - `↑`/`↓` or `k`/`j`: move in the menu.
 - `/`: filter the action list.
 - `enter`: select or submit.
+- `c`: copy the complete test output from a result screen.
 - `esc`: go back from forms and results.
 - `q`: quit outside a form; inside a form it is normal input.
 - `ctrl+c`: quit from any screen.

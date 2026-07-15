@@ -136,6 +136,31 @@ func TestAppResultEscapeReturnsToMenu(t *testing.T) {
 	}
 }
 
+func TestAppResultCRequestsClipboardCopyAndShowsStatus(t *testing.T) {
+	model := NewAppModel(testActions(func(context.Context, map[string]string) (string, error) {
+		return "line one\nline two\n", nil
+	}))
+	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, cmd := updated.(AppModel).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, _ = updated.(AppModel).Update(cmd())
+	app := updated.(AppModel)
+
+	updated, copyCmd := app.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	app = updated.(AppModel)
+	if copyCmd == nil {
+		t.Fatal("copyCmd = nil")
+	}
+	if got := fmt.Sprint(copyCmd()); got != "line one\nline two" {
+		t.Fatalf("clipboard content = %q", got)
+	}
+	if app.Screen() != "result" || app.Quitting() {
+		t.Fatalf("app state after copy = screen %q, quitting %t", app.Screen(), app.Quitting())
+	}
+	if view := app.View().Content; !strings.Contains(view, "Copied to clipboard") {
+		t.Fatalf("result view missing copy status:\n%s", view)
+	}
+}
+
 func TestAppViewUsesAltScreen(t *testing.T) {
 	model := NewAppModel(testActions(nil))
 	view := model.View()

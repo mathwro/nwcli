@@ -34,6 +34,8 @@ type AppModel struct {
 	resultTitle    string
 	resultOutput   string
 	resultErr      error
+	resultCopy     string
+	resultStatus   string
 	formErr        error
 	resultViewport viewport.Model
 	quitting       bool
@@ -328,9 +330,17 @@ func (m AppModel) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.resultTitle = ""
 			m.resultOutput = ""
 			m.resultErr = nil
+			m.resultCopy = ""
+			m.resultStatus = ""
 			m.resultViewport.SetContent("")
 			m.resultViewport.GotoTop()
 			return m, nil
+		case "c":
+			if m.resultCopy == "" {
+				return m, nil
+			}
+			m.resultStatus = "Copied to clipboard"
+			return m, tea.SetClipboard(m.resultCopy)
 		case "home":
 			m.resultViewport.GotoTop()
 			return m, nil
@@ -413,18 +423,27 @@ func (m *AppModel) resizeResultViewport() {
 }
 
 func (m *AppModel) setResultContent() {
-	var b strings.Builder
+	m.resultStatus = ""
+	var display strings.Builder
+	var clipboard strings.Builder
 	if m.resultErr != nil {
-		b.WriteString(errorStyle.Render("Error: "))
-		b.WriteString(m.resultErr.Error())
-		b.WriteString("\n\n")
+		display.WriteString(errorStyle.Render("Error: "))
+		display.WriteString(m.resultErr.Error())
+		display.WriteString("\n\n")
+		clipboard.WriteString("Error: ")
+		clipboard.WriteString(m.resultErr.Error())
+		clipboard.WriteString("\n\n")
 	}
 	if m.resultOutput != "" {
-		b.WriteString(strings.TrimSuffix(m.resultOutput, "\n"))
+		output := strings.TrimSuffix(m.resultOutput, "\n")
+		display.WriteString(output)
+		clipboard.WriteString(output)
 	} else if m.resultErr == nil {
-		b.WriteString(successStyle.Render("Done"))
+		display.WriteString(successStyle.Render("Done"))
+		clipboard.WriteString("Done")
 	}
-	m.resultViewport.SetContent(b.String())
+	m.resultCopy = clipboard.String()
+	m.resultViewport.SetContent(display.String())
 	m.resultViewport.GotoTop()
 }
 
@@ -447,10 +466,14 @@ func (m AppModel) renderResult() string {
 	b.WriteString("\n\n")
 	b.WriteString(m.resultViewport.View())
 	b.WriteString("\n\n")
+	if m.resultStatus != "" {
+		b.WriteString(successStyle.Render(m.resultStatus))
+		b.WriteString("\n")
+	}
 	if m.resultViewport.TotalLineCount() > m.resultViewport.VisibleLineCount() {
-		b.WriteString(mutedStyle.Render("↑/↓ scroll • pgup/pgdn page • esc back • q quit"))
+		b.WriteString(mutedStyle.Render("↑/↓ scroll • pgup/pgdn page • c copy • esc back • q quit"))
 	} else {
-		b.WriteString(mutedStyle.Render("esc back • q quit"))
+		b.WriteString(mutedStyle.Render("c copy • esc back • q quit"))
 	}
 	return panelStyle.Render(b.String())
 }
