@@ -4,12 +4,12 @@
 - cluster-only mode — file stats not available
 
 ## Summary
-- 190 nodes · 396 edges · 11 communities (9 shown, 2 thin omitted)
-- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 55 edges (avg confidence: 0.8)
+- 473 nodes · 919 edges · 25 communities (23 shown, 2 thin omitted)
+- Extraction: 83% EXTRACTED · 17% INFERRED · 0% AMBIGUOUS · INFERRED: 156 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7c1ceaa6`
+- Built from commit: `de41981a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -18,88 +18,158 @@
 - ping.go
 - Plan
 - CheckHTTP
-- NewRootCommand
-- ProgressModel
+- root.go
+- ProgressEvent
 - NewAppModel
 - TestNWAliasDefinesMain
 - github.com/mathwro/nwcli
+- executeForTest
+- newCommandError
+- newTLSCommand
+- newTCPCommand
+- calc.go
+- Network Toolbox Design
+- newBatchTLSCommand
+- Usage
+- CheckDNS
+- Compact TUI Redesign
+- stubDNSResolver
+- File Structure
+- AGENTS.md
+- Compact TUI Redesign Implementation Plan
 
 ## God Nodes (most connected - your core abstractions)
-1. `AppModel` - 27 edges
-2. `NewAppModel()` - 14 edges
-3. `CheckPing()` - 12 edges
-4. `testActions()` - 12 edges
-5. `CheckHTTP()` - 11 edges
-6. `Plan()` - 11 edges
-7. `Action` - 10 edges
-8. `ProgressModel` - 10 edges
-9. `NewRootCommand()` - 9 edges
-10. `listenPingSocket()` - 8 edges
+1. `AppModel` - 28 edges
+2. `executeForTest()` - 22 edges
+3. `newCommandError()` - 21 edges
+4. `NewAppModel()` - 16 edges
+5. `emitCommandResult()` - 14 edges
+6. `NewRootCommand()` - 14 edges
+7. `testActions()` - 14 edges
+8. `Action` - 12 edges
+9. `Network Toolbox Design` - 12 edges
+10. `newBatchTLSCommand()` - 11 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `newPingCommand()` --calls--> `CheckPing()`  [INFERRED]
-  cmd/ping.go → internal/checks/ping.go
+- `validateCIDR()` --calls--> `InspectCIDR()`  [INFERRED]
+  cmd/root.go → internal/subnet/calc.go
+- `main()` --calls--> `Execute()`  [INFERRED]
+  main.go → cmd/root.go
 - `runInteractiveMenu()` --calls--> `RunApp()`  [INFERRED]
   cmd/root.go → internal/tui/app.go
-- `runInteractivePing()` --calls--> `CheckPing()`  [INFERRED]
-  cmd/root.go → internal/checks/ping.go
-- `newHTTPCommand()` --calls--> `CheckHTTP()`  [INFERRED]
-  cmd/http.go → internal/checks/http.go
-- `renderPing()` --references--> `PingAttempt`  [EXTRACTED]
-  cmd/ping.go → internal/checks/ping.go
+- `runInteractiveCIDR()` --calls--> `InspectCIDR()`  [INFERRED]
+  cmd/root.go → internal/subnet/calc.go
+- `validatePrefixes()` --calls--> `ParsePrefixes()`  [INFERRED]
+  cmd/root.go → internal/subnet/subnet.go
 
 ## Import Cycles
 - None detected.
 
-## Communities (11 total, 2 thin omitted)
+## Communities (25 total, 2 thin omitted)
 
 ### Community 0 - "AppModel"
-Cohesion: 0.12
-Nodes (17): appView(), Cmd, Context, Model, Msg, View, isCtrlC(), keyName() (+9 more)
+Cohesion: 0.09
+Nodes (21): Context, appView(), Cmd, Context, Model, Msg, View, isCtrlC() (+13 more)
 
 ### Community 1 - "ping.go"
-Cohesion: 0.16
-Nodes (25): Addr, ErrICMPPermission, PingAttempt, PingOptions, pingSocket, PingSummary, CheckPing(), Context (+17 more)
+Cohesion: 0.11
+Nodes (35): ErrICMPPermission, PingAttempt, PingOptions, pingSocket, PingSummary, Command, Writer, newPingCommand() (+27 more)
 
 ### Community 2 - "Plan"
-Cohesion: 0.15
-Nodes (23): runInteractiveSubnet(), Command, newSubnetCarveCommand(), newSubnetCommand(), allocationBar(), Writer, Render(), ipToUint32() (+15 more)
+Cohesion: 0.17
+Nodes (21): runInteractiveSubnet(), validatePrefixes(), allocationBar(), Writer, Render(), ipToUint32(), ParsePrefixes(), Plan() (+13 more)
 
 ### Community 3 - "CheckHTTP"
-Cohesion: 0.14
-Nodes (21): HTTPOptions, HTTPResult, roundTripFunc, Client, Command, Writer, httpResultError(), newHTTPCommand() (+13 more)
-
-### Community 4 - "NewRootCommand"
 Cohesion: 0.13
-Nodes (20): executeForTest(), T, TestHTTPCommandRejectsMissingHost(), TestInteractiveActionsUseTUIAppFields(), TestRootNoArgsRunsInjectedMenu(), TestSubnetCarveCommandPrintsAllocation(), TestSubnetCarveRequiresCIDR(), main() (+12 more)
+Nodes (23): HTTPOptions, HTTPResult, roundTripFunc, Client, Command, Writer, httpOutput(), httpResultError() (+15 more)
 
-### Community 5 - "ProgressModel"
-Cohesion: 0.19
-Nodes (11): Cmd, Context, Model, Msg, View, NewProgressModel(), RunProgress(), waitProgressEvent() (+3 more)
+### Community 4 - "root.go"
+Cohesion: 0.08
+Nodes (25): dnsOutput(), dnsResultError(), Command, Writer, newDNSCommand(), renderDNS(), supportedDNSType(), dnsResultJSON (+17 more)
+
+### Community 5 - "ProgressEvent"
+Cohesion: 0.18
+Nodes (12): reportSingle(), Cmd, Context, Model, Msg, View, NewProgressModel(), RunProgress() (+4 more)
 
 ### Community 6 - "NewAppModel"
-Cohesion: 0.27
-Nodes (17): Context, NewAppModel(), Context, T, testActions(), TestAppFormCtrlCQuits(), TestAppFormEscapeReturnsToMenuWithoutQuitting(), TestAppFormQQuits() (+9 more)
+Cohesion: 0.36
+Nodes (16): NewAppModel(), Context, T, testActions(), TestAppFormCtrlCQuits(), TestAppFormEscapeReturnsToMenuWithoutQuitting(), TestAppFormQEditsInputInsteadOfQuitting(), TestAppFormValidationKeepsFocusAndShowsGuidance() (+8 more)
+
+### Community 11 - "executeForTest"
+Cohesion: 0.08
+Nodes (34): T, TestBatchDNSCommandWritesJSONResults(), TestBatchTCPCommandPreservesTargetOrder(), TestBatchTLSCommandReturnsUnhealthyForExpiringCertificate(), executeForTest(), T, TestHTTPCommandRejectsMissingHost(), TestInteractiveActionsUseTUIAppFields() (+26 more)
+
+### Community 12 - "newCommandError"
+Cohesion: 0.17
+Nodes (23): cidrInfoJSON, commandError, emitCommandResult(), Command, Writer, newCommandError(), validateOutputFormat(), writeJSONOutput() (+15 more)
+
+### Community 13 - "newTLSCommand"
+Cohesion: 0.13
+Nodes (23): CertPool, CertificateInfo, TLSOptions, TLSResult, certificateJSON, runInteractiveTLS(), Command, Duration (+15 more)
+
+### Community 14 - "newTCPCommand"
+Cohesion: 0.14
+Nodes (21): ContextDialer, contextDialFunc, TCPOptions, TCPResult, runInteractiveTCP(), Command, Writer, newTCPCommand() (+13 more)
+
+### Community 15 - "calc.go"
+Cohesion: 0.24
+Nodes (19): Int, addressCount(), addrToBig(), bigToAddr(), ContainsCIDR(), Addr, InspectCIDR(), OverlapsCIDR() (+11 more)
+
+### Community 16 - "Network Toolbox Design"
+Cohesion: 0.11
+Nodes (18): Acceptance Criteria, AGENTS.md Content, Architecture, Command Design, Current Project State, Dependencies, Error Handling, Goal (+10 more)
+
+### Community 17 - "newBatchTLSCommand"
+Cohesion: 0.25
+Nodes (15): BatchItem, addBatchFlags(), batchFailure(), Command, newBatchCommand(), newBatchDNSCommand(), newBatchTCPCommand(), newBatchTLSCommand() (+7 more)
+
+### Community 18 - "Usage"
+Cohesion: 0.12
+Nodes (15): Bounded batch checks, CIDR calculator, Development, DNS diagnostics, Features, HTTP/S check, Install, Interactive mode (+7 more)
+
+### Community 19 - "CheckDNS"
+Cohesion: 0.29
+Nodes (12): DNSOptions, DNSResolver, DNSResult, CheckDNS(), dnsResolver(), Context, Duration, lookupDNSRecords() (+4 more)
+
+### Community 20 - "Compact TUI Redesign"
+Cohesion: 0.15
+Nodes (12): Acceptance Criteria, Architecture, Compact TUI Redesign, Error Handling, Goal, In Scope, Interaction Design, Out of Scope (+4 more)
+
+### Community 21 - "stubDNSResolver"
+Cohesion: 0.31
+Nodes (5): stubDNSResolver, Context, IPAddr, MX, NS
+
+### Community 22 - "File Structure"
+Cohesion: 0.20
+Nodes (9): File Structure, Global Constraints, Network Toolbox Implementation Plan, Task 1: Subnet Allocator and Renderer, Task 2: HTTP/S Checker, Task 3: Ping Summary and ICMP Checker, Task 4: Bubble Tea Menu, Prompts, and Progress Models, Task 5: Cobra Command Wiring (+1 more)
+
+### Community 23 - "AGENTS.md"
+Cohesion: 0.33
+Nodes (4): Commands, Development Rules, Package Boundaries, Project Purpose
+
+### Community 24 - "Compact TUI Redesign Implementation Plan"
+Cohesion: 0.33
+Nodes (5): Compact TUI Redesign Implementation Plan, File Structure, Global Constraints, Task 1: TUI App State and Navigation, Task 2: Command Integration and Smoke Tests
 
 ## Knowledge Gaps
-- **3 isolated node(s):** `github.com/mathwro/nwcli`, `actionStartedMsg`, `actionResultMsg`
+- **55 isolated node(s):** `github.com/mathwro/nwcli`, `actionStartedMsg`, `actionResultMsg`, `Project Purpose`, `Commands` (+50 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **2 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Action` connect `NewAppModel` to `AppModel`, `NewRootCommand`, `ProgressModel`?**
-  _High betweenness centrality (0.307) - this node is a cross-community bridge._
-- **Why does `runInteractivePing()` connect `NewRootCommand` to `ping.go`, `ProgressModel`?**
-  _High betweenness centrality (0.295) - this node is a cross-community bridge._
-- **Why does `AppModel` connect `AppModel` to `ProgressModel`, `NewAppModel`?**
-  _High betweenness centrality (0.253) - this node is a cross-community bridge._
-- **Are the 10 inferred relationships involving `NewAppModel()` (e.g. with `TestAppFormCtrlCQuits()` and `TestAppFormEscapeReturnsToMenuWithoutQuitting()`) actually correct?**
-  _`NewAppModel()` has 10 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 2 inferred relationships involving `CheckPing()` (e.g. with `newPingCommand()` and `runInteractivePing()`) actually correct?**
-  _`CheckPing()` has 2 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 6 inferred relationships involving `CheckHTTP()` (e.g. with `newHTTPCommand()` and `runInteractiveHTTP()`) actually correct?**
-  _`CheckHTTP()` has 6 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `github.com/mathwro/nwcli`, `actionStartedMsg`, `actionResultMsg` to the rest of the system?**
-  _3 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Why does `newCommandError()` connect `newCommandError` to `ping.go`, `CheckHTTP`, `root.go`, `executeForTest`, `newTLSCommand`, `newTCPCommand`, `newBatchTLSCommand`?**
+  _High betweenness centrality (0.183) - this node is a cross-community bridge._
+- **Why does `Action` connect `AppModel` to `root.go`, `ProgressEvent`, `NewAppModel`?**
+  _High betweenness centrality (0.161) - this node is a cross-community bridge._
+- **Why does `ProgressEvent` connect `ProgressEvent` to `AppModel`, `ping.go`, `CheckHTTP`, `root.go`, `newTLSCommand`, `newTCPCommand`?**
+  _High betweenness centrality (0.158) - this node is a cross-community bridge._
+- **Are the 18 inferred relationships involving `executeForTest()` (e.g. with `TestBatchDNSCommandWritesJSONResults()` and `TestBatchTCPCommandPreservesTargetOrder()`) actually correct?**
+  _`executeForTest()` has 18 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 19 inferred relationships involving `newCommandError()` (e.g. with `batchFailure()` and `newBatchDNSCommand()`) actually correct?**
+  _`newCommandError()` has 19 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 12 inferred relationships involving `NewAppModel()` (e.g. with `TestAppFormCtrlCQuits()` and `TestAppFormEscapeReturnsToMenuWithoutQuitting()`) actually correct?**
+  _`NewAppModel()` has 12 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 10 inferred relationships involving `emitCommandResult()` (e.g. with `newBatchDNSCommand()` and `newBatchTCPCommand()`) actually correct?**
+  _`emitCommandResult()` has 10 INFERRED edges - model-reasoned connections that need verification._
