@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
@@ -20,6 +21,7 @@ const (
 type AppModel struct {
 	ctx            context.Context
 	actions        []Action
+	menu           list.Model
 	screen         string
 	selected       int
 	activeField    int
@@ -32,6 +34,7 @@ type AppModel struct {
 	resultTitle    string
 	resultOutput   string
 	resultErr      error
+	formErr        error
 	resultViewport viewport.Model
 	quitting       bool
 }
@@ -47,9 +50,27 @@ type actionResultMsg struct {
 func NewAppModel(actions []Action) AppModel {
 	resultViewport := viewport.New(viewport.WithWidth(74), viewport.WithHeight(16))
 	resultViewport.SoftWrap = true
+	items := make([]list.Item, len(actions))
+	for i, action := range actions {
+		items[i] = actionItem{index: i, action: action}
+	}
+	delegate := list.NewDefaultDelegate()
+	delegate.SetSpacing(1)
+	delegate.Styles.NormalTitle = bodyStyle
+	delegate.Styles.NormalDesc = mutedStyle
+	delegate.Styles.SelectedTitle = selectedStyle.PaddingLeft(2)
+	delegate.Styles.SelectedDesc = signalStyle.PaddingLeft(2)
+	menu := list.New(items, delegate, 74, 16)
+	menu.SetShowTitle(false)
+	menu.SetShowStatusBar(false)
+	menu.SetShowFilter(true)
+	menu.SetFilteringEnabled(true)
+	menu.DisableQuitKeybindings()
+	menu.Styles.HelpStyle = mutedStyle
 	return AppModel{
 		ctx:            context.Background(),
 		actions:        actions,
+		menu:           menu,
 		screen:         screenMenu,
 		width:          80,
 		height:         24,
@@ -82,6 +103,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.resizeMenu()
 		m.resizeResultViewport()
 	case actionStartedMsg:
 		return m, waitActionEvent(m.actionEvents)
@@ -101,7 +123,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.setResultContent()
 		return m, nil
 	case tea.KeyPressMsg:
-		if isCtrlC(msg) || keyName(msg) == "q" {
+		if isCtrlC(msg) {
+			m.quitting = true
+			return m, quitCmd()
+		}
+		if keyName(msg) == "q" && m.screen != screenForm && !(m.screen == screenMenu && m.menu.SettingFilter()) {
 			m.quitting = true
 			return m, quitCmd()
 		}
@@ -128,35 +154,38 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m AppModel) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
-	key, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return m, nil
+	if key, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyName(key) {
+		case "enter":
+			if !m.menu.SettingFilter() {
+				item, ok := m.menu.SelectedItem().(actionItem)
+				if !ok || (len(item.action.Fields) == 0 && item.action.Run == nil && item.action.RunProgress == nil) {
+					m.quitting = true
+					return m, quitCmd()
+				}
+				m.selected = item.index
+				m.openForm()
+				return m, nil
+			}
+		case "esc":
+			if m.menu.FilterState() == list.Unfiltered {
+				m.quitting = true
+				return m, quitCmd()
+			}
+		}
 	}
-	switch keyName(key) {
-	case "up", "k":
-		if m.selected > 0 {
-			m.selected--
-		}
-	case "down", "j":
-		if m.selected < len(m.actions)-1 {
-			m.selected++
-		}
-	case "enter":
-		if len(m.actions) == 0 || m.selected >= len(m.actions) || (len(m.actions[m.selected].Fields) == 0 && m.actions[m.selected].Run == nil) {
-			m.quitting = true
-			return m, quitCmd()
-		}
-		m.openForm()
-	case "q", "esc":
-		m.quitting = true
-		return m, quitCmd()
+	var cmd tea.Cmd
+	m.menu, cmd = m.menu.Update(msg)
+	if item, ok := m.menu.SelectedItem().(actionItem); ok {
+		m.selected = item.index
 	}
-	return m, nil
+	return m, cmd
 }
 
 func (m *AppModel) openForm() {
 	action := m.actions[m.selected]
 	m.screen = screenForm
+	m.formErr = nil
 	m.activeField = 0
 	m.values = make(map[string]string, len(action.Fields))
 	for _, field := range action.Fields {
@@ -179,17 +208,21 @@ func (m AppModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	switch keyName(key) {
 	case "esc":
+		m.formErr = nil
 		m.screen = screenMenu
 		return m, nil
 	case "up":
+		m.formErr = nil
 		m.moveField(-1)
 		return m, nil
 	case "down", "tab":
+		m.formErr = nil
 		m.moveField(1)
 		return m, nil
 	case "enter":
 		return m.submitForm()
 	}
+	m.formErr = nil
 	var cmd tea.Cmd
 	m.input, cmd = m.input.Update(msg)
 	return m, cmd
@@ -229,10 +262,24 @@ func (m *AppModel) storeActiveField() {
 func (m AppModel) submitForm() (tea.Model, tea.Cmd) {
 	m.storeActiveField()
 	action := m.actions[m.selected]
+	for i, field := range action.Fields {
+		if field.Validate == nil {
+			continue
+		}
+		if err := field.Validate(m.values[field.Name]); err != nil {
+			m.formErr = fmt.Errorf("%s: %w", field.Label, err)
+			m.activeField = i
+			m.input.SetValue(m.values[field.Name])
+			m.input.Placeholder = field.Default
+			m.input.CursorEnd()
+			return m, nil
+		}
+	}
 	values := make(map[string]string, len(m.values))
 	for key, value := range m.values {
 		values[key] = value
 	}
+	m.formErr = nil
 	m.screen = screenRunning
 	if action.RunProgress != nil {
 		events := make(chan tea.Msg, 1)
@@ -320,18 +367,9 @@ func (m AppModel) renderMenu() string {
 	var b strings.Builder
 	b.WriteString(titleStyle.Render("nwcli"))
 	b.WriteString("\n")
-	b.WriteString(mutedStyle.Render("Network toolbox"))
+	b.WriteString(signalStyle.Render("local ── probe ── target"))
 	b.WriteString("\n\n")
-	for i, action := range m.actions {
-		line := fmt.Sprintf("  %s", action.Title)
-		if i == m.selected {
-			line = selectedStyle.Render("> " + action.Title)
-		}
-		b.WriteString(line)
-		b.WriteByte('\n')
-	}
-	b.WriteString("\n")
-	b.WriteString(mutedStyle.Render("↑/↓ move • enter select • q quit"))
+	b.WriteString(m.menu.View())
 	return panelStyle.Render(b.String())
 }
 
@@ -352,9 +390,21 @@ func (m AppModel) renderForm() string {
 		b.WriteString(line)
 		b.WriteByte('\n')
 	}
+	if m.formErr != nil {
+		b.WriteString("\n")
+		b.WriteString(errorStyle.Render(m.formErr.Error()))
+		b.WriteString("\n")
+	}
 	b.WriteString("\n")
 	b.WriteString(mutedStyle.Render("↑/↓ fields • enter submit • esc back • ctrl+c quit"))
 	return panelStyle.Render(b.String())
+}
+
+func (m *AppModel) resizeMenu() {
+	m.menu.SetSize(
+		max(24, m.width-panelStyle.GetHorizontalFrameSize()),
+		max(8, m.height-panelStyle.GetVerticalFrameSize()-4),
+	)
 }
 
 func (m *AppModel) resizeResultViewport() {
@@ -425,4 +475,15 @@ func keyName(key tea.KeyPressMsg) string {
 
 func isCtrlC(key tea.KeyPressMsg) bool {
 	return key.String() == "ctrl+c" || (key.Key().Mod == tea.ModCtrl && key.Key().Code == 'c')
+}
+
+type actionItem struct {
+	index  int
+	action Action
+}
+
+func (item actionItem) Title() string       { return item.action.Title }
+func (item actionItem) Description() string { return item.action.Description }
+func (item actionItem) FilterValue() string {
+	return item.action.Title + " " + item.action.Description
 }

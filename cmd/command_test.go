@@ -64,8 +64,8 @@ func TestHTTPCommandRejectsMissingHost(t *testing.T) {
 
 func TestInteractiveActionsUseTUIAppFields(t *testing.T) {
 	actions := interactiveActions()
-	if len(actions) < 3 {
-		t.Fatalf("len(actions) = %d, want at least 3", len(actions))
+	if len(actions) < 8 {
+		t.Fatalf("len(actions) = %d, want expanded toolbox actions", len(actions))
 	}
 	if actions[0].Title != "Subnet carve" {
 		t.Fatalf("first action = %q, want Subnet carve", actions[0].Title)
@@ -73,7 +73,13 @@ func TestInteractiveActionsUseTUIAppFields(t *testing.T) {
 	if len(actions[0].Fields) != 2 || actions[0].Fields[0].Label != "Parent CIDR" || actions[0].Fields[1].Label != "Child prefixes" {
 		t.Fatalf("subnet fields = %#v", actions[0].Fields)
 	}
-	if actions[1].Title != "Ping test" || actions[1].RunProgress == nil {
-		t.Fatalf("ping action = %#v, want progress-enabled Ping test", actions[1])
+	for _, action := range actions {
+		if action.Title == "Ping test" {
+			if action.RunProgress == nil {
+				t.Fatalf("ping action = %#v, want progress-enabled Ping test", action)
+			}
+			return
+		}
 	}
+	t.Fatal("Ping test action not found")
 }

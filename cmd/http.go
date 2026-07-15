@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var httpCheck = checks.CheckHTTP
+
 func newHTTPCommand() *cobra.Command {
 	var port int
 	var useTLS bool
@@ -20,9 +22,12 @@ func newHTTPCommand() *cobra.Command {
 		Short: "Check an HTTP/S endpoint",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			result := checks.CheckHTTP(cmd.Context(), http.DefaultClient, checks.HTTPOptions{Host: args[0], Port: port, TLS: useTLS, Path: path, Timeout: timeout})
-			renderHTTP(cmd.OutOrStdout(), result)
-			return httpResultError(result)
+			result := httpCheck(cmd.Context(), http.DefaultClient, checks.HTTPOptions{Host: args[0], Port: port, TLS: useTLS, Path: path, Timeout: timeout})
+			runErr := httpResultError(result)
+			return emitCommandResult(cmd, "http", httpOutput(result), runErr, func(w io.Writer) error {
+				renderHTTP(w, result)
+				return nil
+			})
 		},
 	}
 	cmd.Flags().IntVar(&port, "port", 0, "target port (defaults to 80 or 443 with --tls)")
@@ -46,10 +51,30 @@ func renderHTTP(w io.Writer, result checks.HTTPResult) {
 
 func httpResultError(result checks.HTTPResult) error {
 	if result.Err != nil {
-		return result.Err
+		return newCommandError(exitUnreachable, result.Err)
 	}
 	if !result.Healthy {
-		return fmt.Errorf("endpoint reachable but unhealthy: status %d", result.StatusCode)
+		return newCommandError(exitUnhealthy, fmt.Errorf("endpoint reachable but unhealthy: status %d", result.StatusCode))
 	}
 	return nil
+}
+
+type httpResultJSON struct {
+	URL        string `json:"url"`
+	StatusCode int    `json:"status_code,omitempty"`
+	Latency    string `json:"latency"`
+	Reachable  bool   `json:"reachable"`
+	Healthy    bool   `json:"healthy"`
+	Error      string `json:"error,omitempty"`
+}
+
+func httpOutput(result checks.HTTPResult) httpResultJSON {
+	output := httpResultJSON{
+		URL: result.URL, StatusCode: result.StatusCode, Latency: result.Latency.String(),
+		Reachable: result.Reachable, Healthy: result.Healthy,
+	}
+	if result.Err != nil {
+		output.Error = result.Err.Error()
+	}
+	return output
 }

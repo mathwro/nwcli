@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -59,17 +60,17 @@ func TestAppFormCtrlCQuits(t *testing.T) {
 	}
 }
 
-func TestAppFormQQuits(t *testing.T) {
+func TestAppFormQEditsInputInsteadOfQuitting(t *testing.T) {
 	model := NewAppModel(testActions(nil))
 	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	app := updated.(AppModel)
-	updated, cmd := app.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	updated, _ = app.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	app = updated.(AppModel)
-	if !app.Quitting() {
-		t.Fatal("Quitting = false, want true")
+	if app.Quitting() {
+		t.Fatal("Quitting = true, want false while editing")
 	}
-	if cmd == nil {
-		t.Fatal("cmd = nil, want quit command")
+	if view := app.View().Content; !strings.Contains(view, "10.0.0.0/24q") {
+		t.Fatalf("form view does not contain typed q:\n%s", view)
 	}
 }
 
@@ -190,5 +191,38 @@ func TestAppRunningViewShowsActionProgress(t *testing.T) {
 	}
 	if view := app.View().Content; !strings.Contains(view, "Ping 2 of 50") {
 		t.Fatalf("running view missing progress label:\n%s", view)
+	}
+}
+
+func TestAppMenuUsesActionDescriptions(t *testing.T) {
+	actions := testActions(nil)
+	actions[0].Description = "Allocate child networks and see remaining space"
+	model := NewAppModel(actions)
+	view := model.View().Content
+	if !strings.Contains(view, actions[0].Description) {
+		t.Fatalf("menu view missing action description:\n%s", view)
+	}
+}
+
+func TestAppFormValidationKeepsFocusAndShowsGuidance(t *testing.T) {
+	actions := testActions(nil)
+	actions[0].Fields[0].Validate = func(value string) error {
+		if value == "10.0.0.0/24" {
+			return fmt.Errorf("choose a non-default CIDR")
+		}
+		return nil
+	}
+	model := NewAppModel(actions)
+	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, cmd := updated.(AppModel).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	app := updated.(AppModel)
+	if cmd != nil {
+		t.Fatal("cmd is non-nil for invalid form")
+	}
+	if app.Screen() != "form" {
+		t.Fatalf("Screen = %q, want form", app.Screen())
+	}
+	if view := app.View().Content; !strings.Contains(view, "choose a non-default CIDR") {
+		t.Fatalf("form view missing validation guidance:\n%s", view)
 	}
 }

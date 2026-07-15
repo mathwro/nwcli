@@ -5,9 +5,12 @@
 ## Features
 
 - IPv4 subnet carving with a visual allocation map.
-- ICMP ping checks with summary output.
-- HTTP/S endpoint checks by host, port, path, and timeout.
-- Interactive compact-panel TUI when run without arguments.
+- IPv4 and IPv6 CIDR inspection, containment, overlap, splitting, and summarization.
+- DNS record diagnostics with optional resolver selection.
+- ICMP ping, TCP connection, TLS certificate, and HTTP/S endpoint checks.
+- Bounded concurrent DNS, TCP, and TLS batch checks.
+- Versioned JSON output and stable automation exit codes.
+- Searchable Bubble Tea TUI when run without arguments.
 - Optional `nw` command alias in addition to `nwcli`.
 
 ## Install
@@ -44,9 +47,11 @@ nwcli
 Keyboard shortcuts:
 
 - `↑`/`↓` or `k`/`j`: move in the menu.
+- `/`: filter the action list.
 - `enter`: select or submit.
 - `esc`: go back from forms and results.
-- `q` or `ctrl+c`: quit.
+- `q`: quit outside a form; inside a form it is normal input.
+- `ctrl+c`: quit from any screen.
 
 ### Subnet carving
 
@@ -75,6 +80,70 @@ The `nw` alias works the same way:
 ```bash
 nw subnet carve --cidr 10.0.0.0/24 --sizes 27,27,28,28
 ```
+
+### CIDR calculator
+
+Inspect or transform IPv4 and IPv6 CIDRs:
+
+```bash
+nwcli subnet inspect 10.0.0.37/24
+nwcli subnet contains 10.0.0.0/24 10.0.0.42
+nwcli subnet overlap 10.0.0.0/24 10.0.0.128/25
+nwcli subnet split 10.0.0.0/24 --prefix 26
+nwcli subnet summarize 10.0.0.0/25 10.0.0.128/25
+```
+
+### DNS diagnostics
+
+Query common DNS record types through the system resolver or a selected resolver:
+
+```bash
+nwcli dns example.com --type AAAA --server 1.1.1.1 --timeout 2s
+```
+
+Supported record types are `A`, `AAAA`, `CNAME`, `MX`, `NS`, `TXT`, and `PTR`.
+
+### TCP connection check
+
+Measure transport-level reachability without changing the meaning of ICMP ping:
+
+```bash
+nwcli tcp example.com:443 --timeout 2s
+```
+
+### TLS inspection
+
+Verify TLS, inspect the certificate chain, and return unhealthy when the leaf certificate expires inside the warning window:
+
+```bash
+nwcli tls example.com:443 --server-name example.com --warn-before 30d
+```
+
+### Bounded batch checks
+
+Run DNS, TCP, or TLS checks concurrently while preserving input order:
+
+```bash
+nwcli batch dns one.example two.example --type A --concurrency 4
+nwcli batch tcp one.example:80 two.example:443 --concurrency 4
+nwcli batch tls one.example:443 two.example:443 --concurrency 4
+```
+
+### Structured output and exit codes
+
+Every command supports `--output text` (default) or a versioned JSON envelope:
+
+```bash
+nwcli --output json tcp example.com:443
+```
+
+Exit codes are stable for automation:
+
+- `0`: success and healthy.
+- `2`: invalid command usage or input.
+- `3`: reachable but unhealthy.
+- `4`: unreachable or runtime network failure.
+- `5`: ICMP permission failure.
 
 ### HTTP/S check
 
@@ -114,8 +183,8 @@ Project layout:
 
 - `cmd/`: Cobra command wiring and interactive action wiring.
 - `cmd/nw/`: short `nw` alias entry point.
-- `internal/subnet/`: deterministic IPv4 CIDR allocation and rendering.
-- `internal/checks/`: network checks and result aggregation.
+- `internal/subnet/`: deterministic subnet allocation and dual-stack CIDR calculations.
+- `internal/checks/`: network checks and bounded result aggregation.
 - `internal/tui/`: Bubble Tea models, compact-panel TUI, and styling.
 
 See `AGENTS.md` for agent/development rules.
