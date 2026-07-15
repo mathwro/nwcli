@@ -29,12 +29,31 @@ func TestInteractiveActionsExposeNewDiagnosticsWithDescriptions(t *testing.T) {
 	}
 	foundContinuous := false
 	for _, field := range byTitle["Ping test"].Fields {
-		if field.Name == "continuous" && field.Default == "false" && field.Validate != nil {
+		if field.Name == "continuous" && field.Default == "false" && field.Toggle && field.Validate != nil {
 			foundContinuous = true
 		}
 	}
 	if !foundContinuous {
 		t.Fatal("Ping test action missing validated continuous field")
+	}
+}
+
+func TestInteractiveActionsUseTogglesAndPlaceholders(t *testing.T) {
+	for _, action := range interactiveActions() {
+		for _, field := range action.Fields {
+			if field.Toggle {
+				if field.Name != "continuous" && field.Name != "tls" {
+					t.Fatalf("unexpected toggle %q on action %q", field.Name, action.Title)
+				}
+				continue
+			}
+			if field.Default != "" {
+				t.Fatalf("text field %q on action %q has pre-populated value %q", field.Name, action.Title, field.Default)
+			}
+			if field.Placeholder == "" {
+				t.Fatalf("text field %q on action %q has no example placeholder", field.Name, action.Title)
+			}
+		}
 	}
 }
 

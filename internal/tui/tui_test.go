@@ -256,6 +256,93 @@ func TestAppRunningViewHighlightsLivePacketLoss(t *testing.T) {
 	}
 }
 
+func TestAppRunningStopTransitionsToCopyableResult(t *testing.T) {
+	stopped := false
+	model := NewAppModel([]Action{{Title: "Continuous ping"}})
+	model.screen = screenRunning
+	model.actionEvents = make(chan tea.Msg)
+	model.actionCancel = func() { stopped = true }
+	model.progress = NewProgressModel("Continuous ping")
+
+	updated, _ := model.Update(tea.KeyPressMsg{Code: 's', Text: "s"})
+	app := updated.(AppModel)
+	if !stopped || !app.stopping || app.Screen() != "running" {
+		t.Fatalf("stop state = stopped %t, stopping %t, screen %q", stopped, app.stopping, app.Screen())
+	}
+	if view := app.View().Content; !strings.Contains(view, "Stopping") {
+		t.Fatalf("running view missing stopping status:\n%s", view)
+	}
+
+	updated, _ = app.Update(actionResultMsg{
+		title:  "Continuous ping",
+		result: Result{Text: "sent=4 received=3 dropped=1 loss=25.0%"},
+	})
+	app = updated.(AppModel)
+	if app.Screen() != "result" {
+		t.Fatalf("Screen = %q, want result", app.Screen())
+	}
+	_, copyCmd := app.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	if copyCmd == nil || fmt.Sprint(copyCmd()) != "sent=4 received=3 dropped=1 loss=25.0%" {
+		t.Fatalf("clipboard command = %v", copyCmd)
+	}
+}
+
+func TestAppBooleanFieldUsesToggleControl(t *testing.T) {
+	var runValues map[string]string
+	actions := []Action{{
+		Title: "Ping test",
+		Fields: []Field{{
+			Name: "continuous", Label: "Continuous", Default: "false", Toggle: true,
+		}},
+		Run: func(_ context.Context, values map[string]string) (Result, error) {
+			runValues = values
+			return Result{Text: "done"}, nil
+		},
+	}}
+	model := NewAppModel(actions)
+	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	app := updated.(AppModel)
+	if view := app.View().Content; !strings.Contains(view, "OFF") {
+		t.Fatalf("toggle view missing OFF state:\n%s", view)
+	}
+	updated, _ = app.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
+	app = updated.(AppModel)
+	if view := app.View().Content; !strings.Contains(view, "ON") {
+		t.Fatalf("toggle view missing ON state:\n%s", view)
+	}
+	updated, cmd := app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("cmd = nil, want action command")
+	}
+	updated, _ = updated.(AppModel).Update(cmd())
+	if runValues["continuous"] != "true" {
+		t.Fatalf("continuous = %q, want true", runValues["continuous"])
+	}
+}
+
+func TestAppTextFieldShowsPlaceholderAndAcceptsDirectInput(t *testing.T) {
+	actions := []Action{{
+		Title: "CIDR inspect",
+		Fields: []Field{{
+			Name: "cidr", Label: "CIDR", Placeholder: "10.0.0.0/24",
+		}},
+	}}
+	model := NewAppModel(actions)
+	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	app := updated.(AppModel)
+	if app.input.Value() != "" {
+		t.Fatalf("input value = %q, want empty", app.input.Value())
+	}
+	if app.input.Placeholder != "10.0.0.0/24" || !strings.Contains(app.View().Content, "0.0.0.0/24") {
+		t.Fatalf("placeholder = %q, view:\n%s", app.input.Placeholder, app.View().Content)
+	}
+	updated, _ = app.Update(tea.KeyPressMsg{Code: '1', Text: "1"})
+	app = updated.(AppModel)
+	if app.input.Value() != "1" {
+		t.Fatalf("input value = %q, want direct input 1", app.input.Value())
+	}
+}
+
 func TestAppMenuUsesActionDescriptions(t *testing.T) {
 	actions := testActions(nil)
 	actions[0].Description = "Allocate child networks and see remaining space"

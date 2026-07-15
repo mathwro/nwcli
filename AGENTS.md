@@ -28,10 +28,12 @@
 - Treat the TUI as a compact network console: quiet framing, strong information hierarchy, and color that communicates state rather than decorating the screen.
 - Reuse the shared Lip Gloss styles in `internal/tui/styles.go`. Keep the established cyan/blue signal palette, green success, amber warning, coral failure, bright data text, and muted secondary text.
 - Build interactive action output with `tui.Result`: a stable status header, primary target headline, concise summary, overview fields, and optional detail sections. Keep the original plain-text output in `Result.Text` for clipboard use.
+- Every completed or user-stopped action must reach the shared result screen with complete, copyable output. Preserve partial measurements when a check is stopped, and keep `c` wired to copy the displayed result rather than requiring users to select terminal text.
 - Put result details in the shared viewport and preserve responsive resizing. Do not create action-specific screen models when the structured result renderer can express the content.
 - Reserve bespoke visuals for data with spatial meaning. Subnet carving uses the proportional address-space rail, color-keyed numbered allocations, explicit endpoints, address counts, and a visibly distinct available range.
 - Never rely on color alone. Pair state colors with text or glyphs, and pair allocation colors with stable indices, CIDRs, ranges, and counts.
-- Use existing Bubbles components for lists, text input, viewports, and progress. Keep the established keys: arrows or `j`/`k` navigate, `/` filters, `enter` selects or submits, `c` copies results, `esc` goes back, and `ctrl+c` quits.
+- Show examples as placeholders instead of pre-populated editable text. Render boolean values as keyboard-operable toggles rather than asking users to type `true` or `false`.
+- Use existing Bubbles components for lists, text input, viewports, and progress. Keep the established keys: arrows or `j`/`k` navigate, `/` filters, `enter` selects or runs, arrows or `space` operate toggles, `s` stops a running check into its result screen, `c` copies results, `esc` goes back or stops a running check, and `ctrl+c` quits.
 - Keep errors actionable and in context. Preserve any partial structured result, label the screen `NEEDS ATTENTION`, and explain the concrete failure instead of showing a generic error state.
 - Test observable hierarchy and interaction rather than ANSI escape sequences. Visual changes also require a PTY smoke check at a practical terminal size.
 

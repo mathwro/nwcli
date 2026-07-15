@@ -48,13 +48,15 @@ Keyboard shortcuts:
 
 - `↑`/`↓` or `k`/`j`: move in the menu.
 - `/`: filter the action list.
-- `enter`: select or submit.
+- `enter`: select an action or run the current form.
+- `←`/`→` or `space`: switch boolean controls between `ON` and `OFF`.
+- `s`: stop a running check and open its result screen.
 - `c`: copy the complete test output from a result screen.
-- `esc`: go back from forms and results.
-- `q`: quit outside a form; inside a form it is normal input.
+- `esc`: go back from forms and results; while a check runs, stop it and open its results.
+- `q`: quit outside a form; inside a text field it is normal input.
 - `ctrl+c`: quit from any screen.
 
-Result pages keep status and the primary target visible above a scrollable detail view. Subnet carving adds a proportional address-space rail, color-keyed allocations, endpoint ranges, and the remaining available range.
+Forms show examples as placeholders rather than pre-populated text, so typing starts immediately without deleting an example first. Result pages keep status and the primary target visible above a scrollable detail view. Subnet carving adds a proportional address-space rail, color-keyed allocations, endpoint ranges, and the remaining available range.
 
 ### Subnet carving
 
@@ -176,7 +178,7 @@ nwcli ping 127.0.0.1 --continuous --timeout 1s
 nwcli ping 127.0.0.1 -c
 ```
 
-Press `ctrl+c` to stop cleanly and print the final summary. In the interactive TUI, set the Ping test's `Continuous` field to `true`; the running view updates Sent, Received, Dropped, and Loss fields after every attempt.
+Press `ctrl+c` to stop the CLI cleanly and print its final summary. In the interactive TUI, switch the Ping test's `Continuous` toggle to `ON`; the running view updates Sent, Received, Dropped, and Loss after every attempt. Press `s` or `esc` to stop, open the final result screen, and then press `c` to copy the results.
 
 ICMP may require elevated permissions or OS capability configuration. `nwcli` does not silently fall back to TCP because that would make `ping` mean two different things.
 

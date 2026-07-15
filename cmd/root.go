@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -57,8 +58,8 @@ func interactiveActions() []tui.Action {
 			Title:       "Subnet carve",
 			Description: "Allocate ordered IPv4 child networks and see remaining space",
 			Fields: []tui.Field{
-				{Name: "cidr", Label: "Parent CIDR", Default: "10.0.0.0/24", Validate: validateCIDR},
-				{Name: "sizes", Label: "Child prefixes", Default: "27,27,28,28", Validate: validatePrefixes},
+				{Name: "cidr", Label: "Parent CIDR", Placeholder: "10.0.0.0/24", Validate: validateCIDR},
+				{Name: "sizes", Label: "Child prefixes", Placeholder: "27,27,28,28", Validate: validatePrefixes},
 			},
 			Run: runInteractiveSubnet,
 		},
@@ -66,7 +67,7 @@ func interactiveActions() []tui.Action {
 			Title:       "CIDR inspect",
 			Description: "Show normalized range, family, prefix, and address count",
 			Fields: []tui.Field{
-				{Name: "cidr", Label: "CIDR", Default: "10.0.0.0/24", Validate: validateCIDR},
+				{Name: "cidr", Label: "CIDR", Placeholder: "10.0.0.0/24", Validate: validateCIDR},
 			},
 			Run: runInteractiveCIDR,
 		},
@@ -74,10 +75,10 @@ func interactiveActions() []tui.Action {
 			Title:       "Ping test",
 			Description: "Measure ICMP reachability, loss, and latency",
 			Fields: []tui.Field{
-				{Name: "host", Label: "Host", Default: "127.0.0.1", Validate: validateRequired},
-				{Name: "count", Label: "Count", Default: "4", Validate: validatePositiveInteger},
-				{Name: "timeout", Label: "Timeout", Default: "1s", Validate: validateDuration},
-				{Name: "continuous", Label: "Continuous", Default: "false", Validate: validateBoolean},
+				{Name: "host", Label: "Host", Placeholder: "127.0.0.1", Validate: validateRequired},
+				{Name: "count", Label: "Count", Placeholder: "4", Validate: validatePositiveInteger},
+				{Name: "timeout", Label: "Timeout", Placeholder: "1s", Validate: validateDuration},
+				{Name: "continuous", Label: "Continuous", Default: "false", Toggle: true, Validate: validateBoolean},
 			},
 			RunProgress: runInteractivePing,
 		},
@@ -85,10 +86,10 @@ func interactiveActions() []tui.Action {
 			Title:       "DNS lookup",
 			Description: "Query A, AAAA, CNAME, MX, NS, TXT, or PTR records",
 			Fields: []tui.Field{
-				{Name: "host", Label: "Host", Default: "example.com", Validate: validateRequired},
-				{Name: "type", Label: "Record type", Default: "A", Validate: validateDNSRecordType},
-				{Name: "server", Label: "Resolver", Default: ""},
-				{Name: "timeout", Label: "Timeout", Default: "2s", Validate: validateDuration},
+				{Name: "host", Label: "Host", Placeholder: "example.com", Validate: validateRequired},
+				{Name: "type", Label: "Record type", Placeholder: "A", Validate: validateDNSRecordType},
+				{Name: "server", Label: "Resolver (optional)", Placeholder: "1.1.1.1"},
+				{Name: "timeout", Label: "Timeout", Placeholder: "2s", Validate: validateDuration},
 			},
 			RunProgress: runInteractiveDNS,
 		},
@@ -96,8 +97,8 @@ func interactiveActions() []tui.Action {
 			Title:       "TCP connect",
 			Description: "Measure transport-level reachability to a host and port",
 			Fields: []tui.Field{
-				{Name: "address", Label: "Address", Default: "example.com:443", Validate: validateHostPort},
-				{Name: "timeout", Label: "Timeout", Default: "2s", Validate: validateDuration},
+				{Name: "address", Label: "Address", Placeholder: "example.com:443", Validate: validateHostPort},
+				{Name: "timeout", Label: "Timeout", Placeholder: "2s", Validate: validateDuration},
 			},
 			RunProgress: runInteractiveTCP,
 		},
@@ -105,10 +106,10 @@ func interactiveActions() []tui.Action {
 			Title:       "TLS inspect",
 			Description: "Verify TLS and inspect certificate validity and negotiation",
 			Fields: []tui.Field{
-				{Name: "address", Label: "Address", Default: "example.com:443", Validate: validateHostPort},
-				{Name: "server_name", Label: "Server name", Default: ""},
-				{Name: "timeout", Label: "Timeout", Default: "3s", Validate: validateDuration},
-				{Name: "warn_before", Label: "Expiry warning", Default: "30d", Validate: validateExtendedDuration},
+				{Name: "address", Label: "Address", Placeholder: "example.com:443", Validate: validateHostPort},
+				{Name: "server_name", Label: "Server name (optional)", Placeholder: "example.com"},
+				{Name: "timeout", Label: "Timeout", Placeholder: "3s", Validate: validateDuration},
+				{Name: "warn_before", Label: "Expiry warning", Placeholder: "30d", Validate: validateExtendedDuration},
 			},
 			RunProgress: runInteractiveTLS,
 		},
@@ -116,11 +117,11 @@ func interactiveActions() []tui.Action {
 			Title:       "HTTP/S test",
 			Description: "Check endpoint status, reachability, health, and latency",
 			Fields: []tui.Field{
-				{Name: "host", Label: "Host", Default: "example.com", Validate: validateRequired},
-				{Name: "port", Label: "Port", Default: "443", Validate: validatePort},
-				{Name: "tls", Label: "TLS true/false", Default: "true", Validate: validateBoolean},
-				{Name: "path", Label: "Path", Default: "/"},
-				{Name: "timeout", Label: "Timeout", Default: "2s", Validate: validateDuration},
+				{Name: "host", Label: "Host", Placeholder: "example.com", Validate: validateRequired},
+				{Name: "port", Label: "Port", Placeholder: "443", Validate: validatePort},
+				{Name: "tls", Label: "TLS", Default: "true", Toggle: true, Validate: validateBoolean},
+				{Name: "path", Label: "Path", Placeholder: "/"},
+				{Name: "timeout", Label: "Timeout", Placeholder: "2s", Validate: validateDuration},
 			},
 			RunProgress: runInteractiveHTTP,
 		},
@@ -231,6 +232,9 @@ func runInteractivePing(ctx context.Context, values map[string]string, report fu
 		summary, checkErr = continuousPingCheck(ctx, options)
 	} else {
 		attempts, summary, checkErr = pingCheck(ctx, options)
+	}
+	if continuous && errors.Is(checkErr, context.Canceled) {
+		checkErr = nil
 	}
 	var out bytes.Buffer
 	renderPing(&out, attempts, summary)

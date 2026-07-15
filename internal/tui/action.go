@@ -11,8 +11,10 @@ type Action struct {
 }
 
 type Field struct {
-	Name     string
-	Label    string
-	Default  string
-	Validate func(string) error
+	Name        string
+	Label       string
+	Default     string
+	Placeholder string
+	Toggle      bool
+	Validate    func(string) error
 }

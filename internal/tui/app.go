@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"charm.land/bubbles/v2/list"
@@ -31,6 +32,9 @@ type AppModel struct {
 	height         int
 	progress       ProgressModel
 	actionEvents   <-chan tea.Msg
+	actionCancel   context.CancelFunc
+	actionAbort    context.CancelFunc
+	stopping       bool
 	resultTitle    string
 	result         Result
 	resultErr      error
@@ -116,10 +120,22 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.screen != screenRunning {
 			return m, nil
 		}
+		if m.stopping {
+			return m, waitActionEvent(m.actionEvents)
+		}
 		updated, cmd := m.progress.Update(msg)
 		m.progress = updated.(ProgressModel)
 		return m, tea.Batch(cmd, waitActionEvent(m.actionEvents))
 	case actionResultMsg:
+		if m.actionCancel != nil {
+			m.actionCancel()
+			m.actionCancel = nil
+		}
+		if m.actionAbort != nil {
+			m.actionAbort()
+			m.actionAbort = nil
+		}
+		m.stopping = false
 		m.screen = screenResult
 		m.actionEvents = nil
 		m.resultTitle = msg.title
@@ -129,10 +145,22 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyPressMsg:
 		if isCtrlC(msg) {
+			if m.actionCancel != nil {
+				m.actionCancel()
+			}
+			if m.actionAbort != nil {
+				m.actionAbort()
+			}
 			m.quitting = true
 			return m, quitCmd()
 		}
 		if keyName(msg) == "q" && m.screen != screenForm && !(m.screen == screenMenu && m.menu.SettingFilter()) {
+			if m.actionCancel != nil {
+				m.actionCancel()
+			}
+			if m.actionAbort != nil {
+				m.actionAbort()
+			}
 			m.quitting = true
 			return m, quitCmd()
 		}
@@ -144,6 +172,15 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case screenForm:
 		return m.updateForm(msg)
 	case screenRunning:
+		if key, ok := msg.(tea.KeyPressMsg); ok && (keyName(key) == "s" || keyName(key) == "esc") && m.actionCancel != nil {
+			if !m.stopping {
+				m.stopping = true
+				m.actionCancel()
+				m.progress.label = "Stopping... finishing the current request"
+				m.progress.tone = ToneWarning
+			}
+			return m, nil
+		}
 		if m.actionEvents != nil {
 			updated, cmd := m.progress.Update(msg)
 			m.progress = updated.(ProgressModel)
@@ -198,10 +235,8 @@ func (m *AppModel) openForm() {
 	}
 	m.input = textinput.New()
 	if len(action.Fields) > 0 {
-		m.input.SetValue(action.Fields[0].Default)
-		m.input.Placeholder = action.Fields[0].Default
+		m.configureInput(action.Fields[0])
 	}
-	m.input.Focus()
 }
 
 func (m AppModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -210,6 +245,21 @@ func (m AppModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.input, cmd = m.input.Update(msg)
 		return m, cmd
+	}
+	if m.activeFieldIsToggle() {
+		switch keyName(key) {
+		case "left":
+			m.values[m.actions[m.selected].Fields[m.activeField].Name] = "false"
+			return m, nil
+		case "right":
+			m.values[m.actions[m.selected].Fields[m.activeField].Name] = "true"
+			return m, nil
+		}
+		if key.Key().Code == ' ' {
+			field := m.actions[m.selected].Fields[m.activeField]
+			m.values[field.Name] = strconv.FormatBool(m.values[field.Name] != "true")
+			return m, nil
+		}
 	}
 	switch keyName(key) {
 	case "esc":
@@ -226,6 +276,9 @@ func (m AppModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "enter":
 		return m.submitForm()
+	}
+	if m.activeFieldIsToggle() {
+		return m, nil
 	}
 	m.formErr = nil
 	var cmd tea.Cmd
@@ -246,10 +299,7 @@ func (m *AppModel) moveField(delta int) {
 	if m.activeField >= len(action.Fields) {
 		m.activeField = 0
 	}
-	field := action.Fields[m.activeField]
-	m.input.SetValue(m.values[field.Name])
-	m.input.Placeholder = field.Default
-	m.input.CursorEnd()
+	m.configureInput(action.Fields[m.activeField])
 }
 
 func (m *AppModel) storeActiveField() {
@@ -258,10 +308,27 @@ func (m *AppModel) storeActiveField() {
 		return
 	}
 	field := action.Fields[m.activeField]
-	m.values[field.Name] = strings.TrimSpace(m.input.Value())
-	if m.values[field.Name] == "" {
-		m.values[field.Name] = field.Default
+	if field.Toggle {
+		return
 	}
+	m.values[field.Name] = strings.TrimSpace(m.input.Value())
+}
+
+func (m *AppModel) activeFieldIsToggle() bool {
+	action := m.actions[m.selected]
+	return m.activeField >= 0 && m.activeField < len(action.Fields) && action.Fields[m.activeField].Toggle
+}
+
+func (m *AppModel) configureInput(field Field) {
+	if field.Toggle {
+		m.input.Blur()
+		return
+	}
+	m.input.SetWidth(max(12, m.width-26))
+	m.input.SetValue(m.values[field.Name])
+	m.input.Placeholder = field.Placeholder
+	m.input.CursorEnd()
+	m.input.Focus()
 }
 
 func (m AppModel) submitForm() (tea.Model, tea.Cmd) {
@@ -274,9 +341,7 @@ func (m AppModel) submitForm() (tea.Model, tea.Cmd) {
 		if err := field.Validate(m.values[field.Name]); err != nil {
 			m.formErr = fmt.Errorf("%s: %w", field.Label, err)
 			m.activeField = i
-			m.input.SetValue(m.values[field.Name])
-			m.input.Placeholder = field.Default
-			m.input.CursorEnd()
+			m.configureInput(field)
 			return m, nil
 		}
 	}
@@ -288,10 +353,15 @@ func (m AppModel) submitForm() (tea.Model, tea.Cmd) {
 	m.screen = screenRunning
 	if action.RunProgress != nil {
 		events := make(chan tea.Msg, 1)
+		deliveryCtx, abort := context.WithCancel(m.ctx)
+		runCtx, cancel := context.WithCancel(deliveryCtx)
 		m.actionEvents = events
+		m.actionCancel = cancel
+		m.actionAbort = abort
+		m.stopping = false
 		m.progress = NewProgressModel(action.Title)
 		m.progress.label = "Starting..."
-		return m, tea.Batch(m.progress.Init(), startProgressAction(m.ctx, action, values, events))
+		return m, tea.Batch(m.progress.Init(), startProgressAction(runCtx, deliveryCtx, action, values, events))
 	}
 	return m, func() tea.Msg {
 		result, err := action.Run(m.ctx, values)
@@ -299,19 +369,19 @@ func (m AppModel) submitForm() (tea.Model, tea.Cmd) {
 	}
 }
 
-func startProgressAction(ctx context.Context, action Action, values map[string]string, events chan<- tea.Msg) tea.Cmd {
+func startProgressAction(runCtx, deliveryCtx context.Context, action Action, values map[string]string, events chan<- tea.Msg) tea.Cmd {
 	return func() tea.Msg {
 		go func() {
 			report := func(event ProgressEvent) {
 				select {
 				case events <- event:
-				case <-ctx.Done():
+				case <-deliveryCtx.Done():
 				}
 			}
-			result, err := action.RunProgress(ctx, values, report)
+			result, err := action.RunProgress(runCtx, values, report)
 			select {
 			case events <- actionResultMsg{title: action.Title, result: result, err: err}:
-			case <-ctx.Done():
+			case <-deliveryCtx.Done():
 			}
 		}()
 		return actionStartedMsg{}
@@ -393,8 +463,12 @@ func (m AppModel) renderForm() string {
 	b.WriteString("\n\n")
 	for i, field := range action.Fields {
 		value := m.values[field.Name]
-		if i == m.activeField {
+		if field.Toggle {
+			value = renderToggle(value == "true")
+		} else if i == m.activeField {
 			value = m.input.View()
+		} else if value == "" {
+			value = mutedStyle.Render(field.Placeholder)
 		}
 		line := fmt.Sprintf("  %-16s %s", mutedStyle.Render(field.Label), value)
 		if i == m.activeField {
@@ -409,7 +483,7 @@ func (m AppModel) renderForm() string {
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(mutedStyle.Render("↑/↓ fields • enter submit • esc back • ctrl+c quit"))
+	b.WriteString(mutedStyle.Render("↑/↓ fields • ←/→ or space toggle • enter run • esc back • ctrl+c quit"))
 	return panelStyle.Render(b.String())
 }
 
@@ -435,7 +509,11 @@ func (m *AppModel) setResultContent() {
 
 func (m AppModel) renderRunning() string {
 	if m.actionEvents != nil {
-		content := m.progress.View().Content + "\n" + mutedStyle.Render("q quit")
+		help := "s stop → results • q quit"
+		if m.stopping {
+			help = "stopping current check..."
+		}
+		content := m.progress.View().Content + "\n" + mutedStyle.Render(help)
 		return panelStyle.Render(content)
 	}
 	title := "Running"
@@ -464,6 +542,13 @@ func (m AppModel) renderResult() string {
 	return panelStyle.Render(b.String())
 }
 
+func renderToggle(on bool) string {
+	if on {
+		return successStyle.Render("● ON")
+	}
+	return mutedStyle.Render("○ OFF")
+}
+
 func keyName(key tea.KeyPressMsg) string {
 	switch key.Key().Code {
 	case tea.KeyUp:
@@ -472,6 +557,10 @@ func keyName(key tea.KeyPressMsg) string {
 		return "down"
 	case tea.KeyEnter:
 		return "enter"
+	case tea.KeyLeft:
+		return "left"
+	case tea.KeyRight:
+		return "right"
 	case tea.KeyEscape:
 		return "esc"
 	case tea.KeyBackspace:
