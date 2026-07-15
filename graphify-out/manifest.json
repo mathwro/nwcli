@@ -25,7 +25,7 @@
     "semantic_hash": ""
   },
   "cmd/root.go": {
-    "mtime": 1784149560.4054327,
+    "mtime": 1784150621.1772501,
     "ast_hash": "97c755bb26dbec93e90396a3c373ca05",
     "semantic_hash": ""
   },
@@ -75,12 +75,12 @@
     "semantic_hash": "77238a1ea6dc888b000cd9386844b3ba"
   },
   "internal/tui/action.go": {
-    "mtime": 1784149560.3970582,
+    "mtime": 1784150621.5907874,
     "ast_hash": "52577cd685fde83a4e135f44832f5cd2",
     "semantic_hash": ""
   },
   "internal/tui/app.go": {
-    "mtime": 1784149560.3991451,
+    "mtime": 1784150621.6001205,
     "ast_hash": "2e64e667cdf352869e0d9a9be9ebc984",
     "semantic_hash": ""
   },
@@ -100,12 +100,12 @@
     "semantic_hash": "47c82ac71e7b49b92969d15a3169a737"
   },
   "internal/tui/styles.go": {
-    "mtime": 1784149560.3997025,
+    "mtime": 1784150621.6166556,
     "ast_hash": "b84719046f451188fc4da9a357cc3cf8",
     "semantic_hash": ""
   },
   "internal/tui/tui_test.go": {
-    "mtime": 1784149560.4049127,
+    "mtime": 1784150621.6259978,
     "ast_hash": "a350e29baeb64d4b99a53192c56fb951",
     "semantic_hash": ""
   },
@@ -140,7 +140,7 @@
     "semantic_hash": ""
   },
   "cmd/interactive_actions_test.go": {
-    "mtime": 1784149560.4049127,
+    "mtime": 1784150621.1694286,
     "ast_hash": "ed57eda4dcdcb3d34322f29a0b5e0124",
     "semantic_hash": ""
   },
@@ -230,13 +230,13 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1784150411.4522839,
-    "ast_hash": "7d2d0e248a50f1b77d39d3ee26a41dee",
+    "mtime": 1784150621.154392,
+    "ast_hash": "285b4a77fed651ae270f1dc82cb76ef6",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1784149923.2757585,
-    "ast_hash": "6b2ba119c75288216ef29d57762f578f",
+    "mtime": 1784150621.160161,
+    "ast_hash": "18cab42c67bedc55c3e476f97f8521ef",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-07-14-compact-tui-redesign.md": {
@@ -260,7 +260,7 @@
     "semantic_hash": ""
   },
   "internal/tui/result.go": {
-    "mtime": 1784149382.3342073,
+    "mtime": 1784150621.607372,
     "ast_hash": "0bd62d3778efc5480911efd331dce2cc",
     "semantic_hash": ""
   }
