@@ -228,14 +228,18 @@ func (m *AppModel) openForm() {
 	action := m.actions[m.selected]
 	m.screen = screenForm
 	m.formErr = nil
-	m.activeField = 0
+	m.activeField = -1
 	m.values = make(map[string]string, len(action.Fields))
 	for _, field := range action.Fields {
 		m.values[field.Name] = field.Default
 	}
 	m.input = textinput.New()
-	if len(action.Fields) > 0 {
-		m.configureInput(action.Fields[0])
+	for i, field := range action.Fields {
+		if m.fieldVisible(field) {
+			m.activeField = i
+			m.configureInput(field)
+			break
+		}
 	}
 }
 
@@ -249,15 +253,18 @@ func (m AppModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.activeFieldIsToggle() {
 		switch keyName(key) {
 		case "left":
+			m.formErr = nil
 			m.values[m.actions[m.selected].Fields[m.activeField].Name] = "false"
 			return m, nil
 		case "right":
 			m.values[m.actions[m.selected].Fields[m.activeField].Name] = "true"
+			m.formErr = nil
 			return m, nil
 		}
 		if key.Key().Code == ' ' {
 			field := m.actions[m.selected].Fields[m.activeField]
 			m.values[field.Name] = strconv.FormatBool(m.values[field.Name] != "true")
+			m.formErr = nil
 			return m, nil
 		}
 	}
@@ -292,14 +299,19 @@ func (m *AppModel) moveField(delta int) {
 		return
 	}
 	m.storeActiveField()
-	m.activeField += delta
-	if m.activeField < 0 {
-		m.activeField = len(action.Fields) - 1
+	for range action.Fields {
+		m.activeField += delta
+		if m.activeField < 0 {
+			m.activeField = len(action.Fields) - 1
+		}
+		if m.activeField >= len(action.Fields) {
+			m.activeField = 0
+		}
+		if m.fieldVisible(action.Fields[m.activeField]) {
+			m.configureInput(action.Fields[m.activeField])
+			return
+		}
 	}
-	if m.activeField >= len(action.Fields) {
-		m.activeField = 0
-	}
-	m.configureInput(action.Fields[m.activeField])
 }
 
 func (m *AppModel) storeActiveField() {
@@ -319,6 +331,10 @@ func (m *AppModel) activeFieldIsToggle() bool {
 	return m.activeField >= 0 && m.activeField < len(action.Fields) && action.Fields[m.activeField].Toggle
 }
 
+func (m AppModel) fieldVisible(field Field) bool {
+	return field.Visible == nil || field.Visible(m.values)
+}
+
 func (m *AppModel) configureInput(field Field) {
 	if field.Toggle {
 		m.input.Blur()
@@ -335,6 +351,9 @@ func (m AppModel) submitForm() (tea.Model, tea.Cmd) {
 	m.storeActiveField()
 	action := m.actions[m.selected]
 	for i, field := range action.Fields {
+		if !m.fieldVisible(field) {
+			continue
+		}
 		if field.Validate == nil {
 			continue
 		}
@@ -346,8 +365,10 @@ func (m AppModel) submitForm() (tea.Model, tea.Cmd) {
 		}
 	}
 	values := make(map[string]string, len(m.values))
-	for key, value := range m.values {
-		values[key] = value
+	for _, field := range action.Fields {
+		if m.fieldVisible(field) {
+			values[field.Name] = m.values[field.Name]
+		}
 	}
 	m.formErr = nil
 	m.screen = screenRunning
@@ -462,6 +483,9 @@ func (m AppModel) renderForm() string {
 	b.WriteString(titleStyle.Render(action.Title))
 	b.WriteString("\n\n")
 	for i, field := range action.Fields {
+		if !m.fieldVisible(field) {
+			continue
+		}
 		value := m.values[field.Name]
 		if field.Toggle {
 			value = renderToggle(value == "true")

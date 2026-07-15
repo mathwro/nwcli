@@ -178,7 +178,7 @@ nwcli ping 127.0.0.1 --continuous --timeout 1s
 nwcli ping 127.0.0.1 -c
 ```
 
-Press `ctrl+c` to stop the CLI cleanly and print its final summary. In the interactive TUI, switch the Ping test's `Continuous` toggle to `ON`; the running view updates Sent, Received, Dropped, and Loss after every attempt. Press `s` or `esc` to stop, open the final result screen, and then press `c` to copy the results.
+Press `ctrl+c` to stop the CLI cleanly and print its final summary. In the interactive TUI, switch the Ping test's `Continuous` toggle to `ON`; the finite `Count` field disappears because it no longer applies, while `Host` and per-request `Timeout` remain available. The running view updates Sent, Received, Dropped, and Loss after every attempt. Press `s` or `esc` to stop, open the final result screen, and then press `c` to copy the results.
 
 ICMP may require elevated permissions or OS capability configuration. `nwcli` does not silently fall back to TCP because that would make `ping` mean two different things.
 

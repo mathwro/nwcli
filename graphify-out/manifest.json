@@ -25,8 +25,8 @@
     "semantic_hash": ""
   },
   "cmd/root.go": {
-    "mtime": 1784154746.552582,
-    "ast_hash": "8de377168a4de560b5235fe37189c84d",
+    "mtime": 1784156135.1060984,
+    "ast_hash": "b7fc31c207f92d59b4355251393e3e30",
     "semantic_hash": ""
   },
   "cmd/subnet.go": {
@@ -75,13 +75,13 @@
     "semantic_hash": "77238a1ea6dc888b000cd9386844b3ba"
   },
   "internal/tui/action.go": {
-    "mtime": 1784154665.3500924,
-    "ast_hash": "49226ec4166e92f167842e49c5d6d1c0",
+    "mtime": 1784156135.0834181,
+    "ast_hash": "077030dcd97f0b781f86202bbde60247",
     "semantic_hash": ""
   },
   "internal/tui/app.go": {
-    "mtime": 1784154954.4128664,
-    "ast_hash": "f20699cfedd7af8315bd8b6a4e146677",
+    "mtime": 1784156135.0897067,
+    "ast_hash": "651bc21cc3309bb8d6f62b20b4c6014d",
     "semantic_hash": ""
   },
   "internal/tui/menu.go": {
@@ -105,8 +105,8 @@
     "semantic_hash": ""
   },
   "internal/tui/tui_test.go": {
-    "mtime": 1784154872.3244064,
-    "ast_hash": "ffdfb116f677cd6ee598960be31e7a32",
+    "mtime": 1784156146.8142867,
+    "ast_hash": "b996f9c773668832b6a4dbae7db0f3fd",
     "semantic_hash": ""
   },
   "main.go": {
@@ -140,8 +140,8 @@
     "semantic_hash": ""
   },
   "cmd/interactive_actions_test.go": {
-    "mtime": 1784154599.9536576,
-    "ast_hash": "0d60303e8d926327d12105c522250cf0",
+    "mtime": 1784156146.8142867,
+    "ast_hash": "8cc6475c1d698de8eb47ef6502f90f20",
     "semantic_hash": ""
   },
   "cmd/output.go": {
@@ -230,13 +230,13 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1784155570.945925,
-    "ast_hash": "abbf7091ccaddb962a0c480d79dca61b",
+    "mtime": 1784156370.9727683,
+    "ast_hash": "8662d176c12edbe66ac899eb8ba05913",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1784155478.1304672,
-    "ast_hash": "91403350f65d97e11d6c8f6e532b6e83",
+    "mtime": 1784156370.9788778,
+    "ast_hash": "c6d1cea00e6dd549522efa081b058fc4",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-07-14-compact-tui-redesign.md": {

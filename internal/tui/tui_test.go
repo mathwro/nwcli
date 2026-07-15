@@ -320,6 +320,51 @@ func TestAppBooleanFieldUsesToggleControl(t *testing.T) {
 	}
 }
 
+func TestAppToggleHidesAndSkipsIrrelevantFields(t *testing.T) {
+	var runValues map[string]string
+	actions := []Action{{
+		Title: "Ping test",
+		Fields: []Field{
+			{Name: "continuous", Label: "Continuous", Default: "false", Toggle: true},
+			{
+				Name: "count", Label: "Count", Placeholder: "4",
+				Visible:  func(values map[string]string) bool { return values["continuous"] != "true" },
+				Validate: func(string) error { return fmt.Errorf("count should not be validated") },
+			},
+			{Name: "timeout", Label: "Timeout", Placeholder: "1s"},
+		},
+		Run: func(_ context.Context, values map[string]string) (Result, error) {
+			runValues = values
+			return Result{Text: "done"}, nil
+		},
+	}}
+	model := NewAppModel(actions)
+	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	app := updated.(AppModel)
+	if view := app.View().Content; !strings.Contains(view, "Count") {
+		t.Fatalf("finite ping form missing Count:\n%s", view)
+	}
+
+	updated, _ = app.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
+	app = updated.(AppModel)
+	if view := app.View().Content; strings.Contains(view, "Count") {
+		t.Fatalf("continuous ping form still shows Count:\n%s", view)
+	}
+	updated, _ = app.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	app = updated.(AppModel)
+	if app.ActiveField() != 2 {
+		t.Fatalf("ActiveField = %d, want timeout field 2", app.ActiveField())
+	}
+	updated, cmd := app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("cmd = nil, hidden count validation blocked submit")
+	}
+	updated, _ = updated.(AppModel).Update(cmd())
+	if runValues["continuous"] != "true" {
+		t.Fatalf("run values = %#v", runValues)
+	}
+}
+
 func TestAppTextFieldShowsPlaceholderAndAcceptsDirectInput(t *testing.T) {
 	actions := []Action{{
 		Title: "CIDR inspect",

@@ -76,9 +76,13 @@ func interactiveActions() []tui.Action {
 			Description: "Measure ICMP reachability, loss, and latency",
 			Fields: []tui.Field{
 				{Name: "host", Label: "Host", Placeholder: "127.0.0.1", Validate: validateRequired},
-				{Name: "count", Label: "Count", Placeholder: "4", Validate: validatePositiveInteger},
-				{Name: "timeout", Label: "Timeout", Placeholder: "1s", Validate: validateDuration},
 				{Name: "continuous", Label: "Continuous", Default: "false", Toggle: true, Validate: validateBoolean},
+				{
+					Name: "count", Label: "Count", Placeholder: "4",
+					Visible:  func(values map[string]string) bool { return values["continuous"] != "true" },
+					Validate: validatePositiveInteger,
+				},
+				{Name: "timeout", Label: "Timeout", Placeholder: "1s", Validate: validateDuration},
 			},
 			RunProgress: runInteractivePing,
 		},
@@ -200,20 +204,24 @@ func runInteractiveCIDR(_ context.Context, values map[string]string) (tui.Result
 }
 
 func runInteractivePing(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (tui.Result, error) {
-	count, err := strconv.Atoi(values["count"])
-	if err != nil {
-		return tui.Result{}, fmt.Errorf("invalid count %q: %w", values["count"], err)
-	}
-	timeout, err := time.ParseDuration(values["timeout"])
-	if err != nil {
-		return tui.Result{}, fmt.Errorf("invalid timeout %q: %w", values["timeout"], err)
-	}
 	continuous := false
+	var err error
 	if values["continuous"] != "" {
 		continuous, err = strconv.ParseBool(values["continuous"])
 		if err != nil {
 			return tui.Result{}, fmt.Errorf("invalid continuous value %q: %w", values["continuous"], err)
 		}
+	}
+	count := 0
+	if !continuous {
+		count, err = strconv.Atoi(values["count"])
+		if err != nil {
+			return tui.Result{}, fmt.Errorf("invalid count %q: %w", values["count"], err)
+		}
+	}
+	timeout, err := time.ParseDuration(values["timeout"])
+	if err != nil {
+		return tui.Result{}, fmt.Errorf("invalid timeout %q: %w", values["timeout"], err)
 	}
 	options := checks.PingOptions{
 		Host:    values["host"],

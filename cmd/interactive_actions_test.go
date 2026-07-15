@@ -57,6 +57,29 @@ func TestInteractiveActionsUseTogglesAndPlaceholders(t *testing.T) {
 	}
 }
 
+func TestInteractivePingCountOnlyAppearsForFiniteMode(t *testing.T) {
+	var count tui.Field
+	for _, action := range interactiveActions() {
+		if action.Title != "Ping test" {
+			continue
+		}
+		for _, field := range action.Fields {
+			if field.Name == "count" {
+				count = field
+			}
+		}
+	}
+	if count.Visible == nil {
+		t.Fatal("ping count has no visibility condition")
+	}
+	if !count.Visible(map[string]string{"continuous": "false"}) {
+		t.Fatal("ping count hidden in finite mode")
+	}
+	if count.Visible(map[string]string{"continuous": "true"}) {
+		t.Fatal("ping count visible in continuous mode")
+	}
+}
+
 func TestInteractiveActionFieldsValidateBeforeRunning(t *testing.T) {
 	actions := interactiveActions()
 	for _, action := range actions {
@@ -113,7 +136,6 @@ func TestInteractiveContinuousPingReportsLiveLoss(t *testing.T) {
 	var events []tui.ProgressEvent
 	_, err := runInteractivePing(context.Background(), map[string]string{
 		"host":       "127.0.0.1",
-		"count":      "4",
 		"timeout":    "1s",
 		"continuous": "true",
 	}, func(event tui.ProgressEvent) {
