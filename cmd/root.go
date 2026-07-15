@@ -124,40 +124,84 @@ func interactiveActions() []tui.Action {
 	}
 }
 
-func runInteractiveSubnet(_ context.Context, values map[string]string) (string, error) {
+func runInteractiveSubnet(_ context.Context, values map[string]string) (tui.Result, error) {
 	prefixes, err := subnet.ParsePrefixes(values["sizes"])
 	if err != nil {
-		return "", err
+		return tui.Result{}, err
 	}
 	plan, err := subnet.Plan(values["cidr"], prefixes)
 	if err != nil {
-		return "", err
+		return tui.Result{}, err
 	}
 	var out bytes.Buffer
 	if err := subnet.Render(&out, plan); err != nil {
-		return "", err
+		return tui.Result{}, err
 	}
-	return out.String(), nil
+	segments := make([]tui.AllocationSegment, len(plan.Blocks))
+	var allocated uint64
+	for i, block := range plan.Blocks {
+		segments[i] = tui.AllocationSegment{
+			Index:  block.Index,
+			Label:  block.CIDR.String(),
+			Start:  block.First.String(),
+			End:    block.Last.String(),
+			Offset: uint64(block.StartOffset),
+			Size:   uint64(block.Size),
+		}
+		allocated += uint64(block.Size)
+	}
+	var available *tui.AllocationSegment
+	if plan.Unused != nil {
+		available = &tui.AllocationSegment{
+			Start:  plan.Unused.First.String(),
+			End:    plan.Unused.Last.String(),
+			Offset: uint64(plan.Unused.StartOffset),
+			Size:   uint64(plan.Unused.Size),
+		}
+	}
+	return tui.Result{
+		Headline: plan.Parent.String(),
+		Summary:  fmt.Sprintf("%d of %d addresses allocated", allocated, plan.ParentSize),
+		Text:     out.String(),
+		Allocation: &tui.AllocationMap{
+			Start:     plan.ParentFirst.String(),
+			End:       plan.ParentLast.String(),
+			Total:     uint64(plan.ParentSize),
+			Segments:  segments,
+			Available: available,
+		},
+	}, nil
 }
 
-func runInteractiveCIDR(_ context.Context, values map[string]string) (string, error) {
+func runInteractiveCIDR(_ context.Context, values map[string]string) (tui.Result, error) {
 	info, err := subnet.InspectCIDR(values["cidr"])
 	if err != nil {
-		return "", err
+		return tui.Result{}, err
 	}
 	var out bytes.Buffer
 	fmt.Fprintf(&out, "CIDR: %s\nFamily: %s\nPrefix: /%d\nFirst: %s\nLast: %s\nAddresses: %s\n", info.CIDR, info.Family, info.Prefix, info.First, info.Last, info.Addresses)
-	return out.String(), nil
+	return tui.Result{
+		Headline: info.CIDR,
+		Summary:  "Normalized network range",
+		Text:     out.String(),
+		Fields: []tui.ResultField{
+			{Label: "Family", Value: info.Family},
+			{Label: "Prefix", Value: fmt.Sprintf("/%d", info.Prefix)},
+			{Label: "First address", Value: info.First},
+			{Label: "Last address", Value: info.Last},
+			{Label: "Addresses", Value: info.Addresses, Tone: tui.ToneSuccess},
+		},
+	}, nil
 }
 
-func runInteractivePing(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (string, error) {
+func runInteractivePing(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (tui.Result, error) {
 	count, err := strconv.Atoi(values["count"])
 	if err != nil {
-		return "", fmt.Errorf("invalid count %q: %w", values["count"], err)
+		return tui.Result{}, fmt.Errorf("invalid count %q: %w", values["count"], err)
 	}
 	timeout, err := time.ParseDuration(values["timeout"])
 	if err != nil {
-		return "", fmt.Errorf("invalid timeout %q: %w", values["timeout"], err)
+		return tui.Result{}, fmt.Errorf("invalid timeout %q: %w", values["timeout"], err)
 	}
 	options := checks.PingOptions{
 		Host:    values["host"],
@@ -173,74 +217,197 @@ func runInteractivePing(ctx context.Context, values map[string]string, report fu
 			}
 		},
 	}
-	attempts, summary, err := pingCheck(ctx, options)
+	attempts, summary, checkErr := pingCheck(ctx, options)
 	var out bytes.Buffer
 	renderPing(&out, attempts, summary)
-	return out.String(), pingResultError(err)
+	attemptLines := make([]string, len(attempts))
+	for i, attempt := range attempts {
+		if attempt.Err != nil {
+			attemptLines[i] = fmt.Sprintf("#%d  %s", attempt.Seq, attempt.Err)
+		} else {
+			attemptLines[i] = fmt.Sprintf("#%d  %s", attempt.Seq, attempt.Latency.Round(time.Millisecond))
+		}
+	}
+	lossTone := tui.ToneSuccess
+	if summary.LossPercent > 0 {
+		lossTone = tui.ToneWarning
+	}
+	if summary.Received == 0 {
+		lossTone = tui.ToneDanger
+	}
+	return tui.Result{
+		Headline: values["host"],
+		Summary:  fmt.Sprintf("%d of %d replies · %.1f%% loss", summary.Received, summary.Sent, summary.LossPercent),
+		Text:     out.String(),
+		Fields: []tui.ResultField{
+			{Label: "Sent", Value: strconv.Itoa(summary.Sent)},
+			{Label: "Received", Value: strconv.Itoa(summary.Received), Tone: toneForBool(summary.Received > 0)},
+			{Label: "Packet loss", Value: fmt.Sprintf("%.1f%%", summary.LossPercent), Tone: lossTone},
+			{Label: "Minimum", Value: summary.Min.Round(time.Millisecond).String()},
+			{Label: "Average", Value: summary.Avg.Round(time.Millisecond).String()},
+			{Label: "Maximum", Value: summary.Max.Round(time.Millisecond).String()},
+		},
+		Sections: []tui.ResultSection{{Title: "Attempts", Lines: attemptLines}},
+	}, pingResultError(checkErr)
 }
 
-func runInteractiveHTTP(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (string, error) {
+func runInteractiveHTTP(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (tui.Result, error) {
 	port, err := strconv.Atoi(values["port"])
 	if err != nil {
-		return "", fmt.Errorf("invalid port %q: %w", values["port"], err)
+		return tui.Result{}, fmt.Errorf("invalid port %q: %w", values["port"], err)
 	}
 	useTLS, err := strconv.ParseBool(values["tls"])
 	if err != nil {
-		return "", fmt.Errorf("invalid tls value %q: %w", values["tls"], err)
+		return tui.Result{}, fmt.Errorf("invalid tls value %q: %w", values["tls"], err)
 	}
 	timeout, err := time.ParseDuration(values["timeout"])
 	if err != nil {
-		return "", fmt.Errorf("invalid timeout %q: %w", values["timeout"], err)
+		return tui.Result{}, fmt.Errorf("invalid timeout %q: %w", values["timeout"], err)
 	}
 	reportSingle(report, "Requesting endpoint", false)
-	result := httpCheck(ctx, nil, checks.HTTPOptions{Host: values["host"], Port: port, TLS: useTLS, Path: values["path"], Timeout: timeout})
+	checkResult := httpCheck(ctx, nil, checks.HTTPOptions{Host: values["host"], Port: port, TLS: useTLS, Path: values["path"], Timeout: timeout})
 	reportSingle(report, "HTTP check complete", true)
 	var out bytes.Buffer
-	renderHTTP(&out, result)
-	return out.String(), httpResultError(result)
+	renderHTTP(&out, checkResult)
+	statusTone := tui.ToneDanger
+	if checkResult.Healthy {
+		statusTone = tui.ToneSuccess
+	} else if checkResult.Reachable {
+		statusTone = tui.ToneWarning
+	}
+	summary := "Endpoint could not be reached"
+	if checkResult.Reachable {
+		summary = fmt.Sprintf("Endpoint responded with HTTP %d", checkResult.StatusCode)
+	}
+	return tui.Result{
+		Headline: checkResult.URL,
+		Summary:  summary,
+		Text:     out.String(),
+		Fields: []tui.ResultField{
+			{Label: "Status", Value: strconv.Itoa(checkResult.StatusCode), Tone: statusTone},
+			{Label: "Latency", Value: checkResult.Latency.Round(time.Millisecond).String()},
+			boolResultField("Reachable", checkResult.Reachable),
+			boolResultField("Healthy", checkResult.Healthy),
+		},
+	}, httpResultError(checkResult)
 }
 
-func runInteractiveDNS(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (string, error) {
+func runInteractiveDNS(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (tui.Result, error) {
 	timeout, err := time.ParseDuration(values["timeout"])
 	if err != nil {
-		return "", err
+		return tui.Result{}, err
 	}
 	reportSingle(report, "Querying DNS", false)
-	result := dnsCheck(ctx, nil, checks.DNSOptions{Host: values["host"], Type: strings.ToUpper(values["type"]), Server: values["server"], Timeout: timeout})
+	checkResult := dnsCheck(ctx, nil, checks.DNSOptions{Host: values["host"], Type: strings.ToUpper(values["type"]), Server: values["server"], Timeout: timeout})
 	reportSingle(report, "DNS query complete", true)
 	var out bytes.Buffer
-	renderDNS(&out, result)
-	return out.String(), dnsResultError(result)
+	renderDNS(&out, checkResult)
+	resolver := checkResult.Server
+	if resolver == "" {
+		resolver = "system default"
+	}
+	return tui.Result{
+		Headline: fmt.Sprintf("%s  %s", checkResult.Type, checkResult.Query),
+		Summary:  fmt.Sprintf("%d records returned", len(checkResult.Records)),
+		Text:     out.String(),
+		Fields: []tui.ResultField{
+			{Label: "Resolver", Value: resolver},
+			{Label: "Latency", Value: checkResult.Latency.Round(time.Millisecond).String()},
+			boolResultField("Reachable", checkResult.Reachable),
+			boolResultField("Healthy", checkResult.Healthy),
+		},
+		Sections: []tui.ResultSection{{Title: "Records", Lines: checkResult.Records}},
+	}, dnsResultError(checkResult)
 }
 
-func runInteractiveTCP(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (string, error) {
+func runInteractiveTCP(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (tui.Result, error) {
 	timeout, err := time.ParseDuration(values["timeout"])
 	if err != nil {
-		return "", err
+		return tui.Result{}, err
 	}
 	reportSingle(report, "Opening TCP connection", false)
-	result := tcpCheck(ctx, nil, checks.TCPOptions{Address: values["address"], Timeout: timeout})
+	checkResult := tcpCheck(ctx, nil, checks.TCPOptions{Address: values["address"], Timeout: timeout})
 	reportSingle(report, "TCP check complete", true)
 	var out bytes.Buffer
-	renderTCP(&out, result)
-	return out.String(), tcpResultError(result)
+	renderTCP(&out, checkResult)
+	summary := "Connection failed"
+	if checkResult.Reachable {
+		summary = "Connection established"
+	}
+	return tui.Result{
+		Headline: checkResult.Address,
+		Summary:  summary,
+		Text:     out.String(),
+		Fields: []tui.ResultField{
+			boolResultField("Reachable", checkResult.Reachable),
+			{Label: "Latency", Value: checkResult.Latency.Round(time.Millisecond).String()},
+			{Label: "Remote", Value: checkResult.RemoteAddress},
+			{Label: "Local", Value: checkResult.LocalAddress},
+		},
+	}, tcpResultError(checkResult)
 }
 
-func runInteractiveTLS(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (string, error) {
+func runInteractiveTLS(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (tui.Result, error) {
 	timeout, err := time.ParseDuration(values["timeout"])
 	if err != nil {
-		return "", err
+		return tui.Result{}, err
 	}
 	warnBefore, err := parseExtendedDuration(values["warn_before"])
 	if err != nil {
-		return "", err
+		return tui.Result{}, err
 	}
 	reportSingle(report, "Negotiating TLS", false)
-	result := tlsCheck(ctx, checks.TLSOptions{Address: values["address"], ServerName: values["server_name"], Timeout: timeout, WarnBefore: warnBefore})
+	checkResult := tlsCheck(ctx, checks.TLSOptions{Address: values["address"], ServerName: values["server_name"], Timeout: timeout, WarnBefore: warnBefore})
 	reportSingle(report, "TLS inspection complete", true)
 	var out bytes.Buffer
-	renderTLS(&out, result)
-	return out.String(), tlsResultError(result)
+	renderTLS(&out, checkResult)
+	summary := "TLS negotiation failed"
+	if checkResult.Verified {
+		summary = "Certificate chain verified"
+	}
+	if checkResult.ExpiringSoon {
+		summary = "Certificate expires within the warning window"
+	}
+	certificateLines := make([]string, 0, len(checkResult.Certificates)*3)
+	for i, certificate := range checkResult.Certificates {
+		certificateLines = append(certificateLines,
+			fmt.Sprintf("%d. %s", i+1, certificate.Subject),
+			"   Issuer  "+certificate.Issuer,
+			"   Expires "+certificate.NotAfter.UTC().Format(time.RFC3339),
+		)
+	}
+	verifiedField := boolResultField("Verified", checkResult.Verified)
+	if checkResult.ExpiringSoon {
+		verifiedField.Tone = tui.ToneWarning
+	}
+	return tui.Result{
+		Headline: checkResult.Address,
+		Summary:  summary,
+		Text:     out.String(),
+		Fields: []tui.ResultField{
+			verifiedField,
+			{Label: "Server name", Value: checkResult.ServerName},
+			{Label: "Protocol", Value: checkResult.Version},
+			{Label: "Cipher", Value: checkResult.CipherSuite},
+			{Label: "Latency", Value: checkResult.Latency.Round(time.Millisecond).String()},
+		},
+		Sections: []tui.ResultSection{{Title: "Certificates", Lines: certificateLines}},
+	}, tlsResultError(checkResult)
+}
+
+func boolResultField(label string, value bool) tui.ResultField {
+	text := "no"
+	if value {
+		text = "yes"
+	}
+	return tui.ResultField{Label: label, Value: text, Tone: toneForBool(value)}
+}
+
+func toneForBool(value bool) tui.ResultTone {
+	if value {
+		return tui.ToneSuccess
+	}
+	return tui.ToneDanger
 }
 
 func reportSingle(report func(tui.ProgressEvent), label string, complete bool) {

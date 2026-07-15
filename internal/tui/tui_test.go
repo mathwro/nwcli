@@ -10,13 +10,20 @@ import (
 )
 
 func testActions(run func(context.Context, map[string]string) (string, error)) []Action {
+	var resultRun func(context.Context, map[string]string) (Result, error)
+	if run != nil {
+		resultRun = func(ctx context.Context, values map[string]string) (Result, error) {
+			output, err := run(ctx, values)
+			return Result{Text: output}, err
+		}
+	}
 	return []Action{{
 		Title: "Subnet carve",
 		Fields: []Field{
 			{Name: "cidr", Label: "Parent CIDR", Default: "10.0.0.0/24"},
 			{Name: "sizes", Label: "Child prefixes", Default: "27,27,28,28"},
 		},
-		Run: run,
+		Run: resultRun,
 	}, {Title: "Quit"}}
 }
 
@@ -115,7 +122,7 @@ func TestAppSubmitRunsActionAndShowsResultInView(t *testing.T) {
 		t.Fatalf("values = %#v, want defaults", runValues)
 	}
 	view := app.View().Content
-	for _, fragment := range []string{"Subnet carve result", "Parent: 10.0.0.0/24", "╭", "╰"} {
+	for _, fragment := range []string{"COMPLETE", "Subnet carve", "Parent: 10.0.0.0/24", "╭", "╰"} {
 		if !strings.Contains(view, fragment) {
 			t.Fatalf("view missing %q:\n%s", fragment, view)
 		}
@@ -199,8 +206,8 @@ func TestAppRunningViewShowsActionProgress(t *testing.T) {
 	actions := []Action{{
 		Title:  "Ping test",
 		Fields: []Field{{Name: "count", Label: "Count", Default: "50"}},
-		RunProgress: func(context.Context, map[string]string, func(ProgressEvent)) (string, error) {
-			return "done", nil
+		RunProgress: func(context.Context, map[string]string, func(ProgressEvent)) (Result, error) {
+			return Result{Text: "done"}, nil
 		},
 	}}
 	model := NewAppModel(actions)
@@ -249,5 +256,70 @@ func TestAppFormValidationKeepsFocusAndShowsGuidance(t *testing.T) {
 	}
 	if view := app.View().Content; !strings.Contains(view, "choose a non-default CIDR") {
 		t.Fatalf("form view missing validation guidance:\n%s", view)
+	}
+}
+
+func TestAppResultRendersStructuredVisualHierarchy(t *testing.T) {
+	actions := []Action{{
+		Title:  "HTTP/S test",
+		Fields: []Field{{Name: "host", Label: "Host", Default: "example.com"}},
+		Run: func(context.Context, map[string]string) (Result, error) {
+			return Result{
+				Headline: "https://example.com:443/",
+				Summary:  "Endpoint responded with HTTP 200",
+				Fields: []ResultField{
+					{Label: "Status", Value: "200", Tone: ToneSuccess},
+					{Label: "Latency", Value: "18ms"},
+				},
+				Text: "URL: https://example.com:443/\nStatus: 200",
+			}, nil
+		},
+	}}
+	model := NewAppModel(actions)
+	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, cmd := updated.(AppModel).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, _ = updated.(AppModel).Update(cmd())
+	view := updated.(AppModel).View().Content
+
+	for _, fragment := range []string{"✓", "HTTP/S test", "https://example.com:443/", "Endpoint responded with HTTP 200", "OVERVIEW", "Status", "200", "Latency", "18ms"} {
+		if !strings.Contains(view, fragment) {
+			t.Fatalf("structured result view missing %q:\n%s", fragment, view)
+		}
+	}
+}
+
+func TestAppResultRendersSubnetAddressRailAndAllocations(t *testing.T) {
+	actions := []Action{{
+		Title:  "Subnet carve",
+		Fields: []Field{{Name: "cidr", Label: "Parent CIDR", Default: "10.0.0.0/24"}},
+		Run: func(context.Context, map[string]string) (Result, error) {
+			return Result{
+				Headline: "10.0.0.0/24",
+				Summary:  "64 of 256 addresses allocated",
+				Text:     "Parent: 10.0.0.0/24",
+				Allocation: &AllocationMap{
+					Start: "10.0.0.0",
+					End:   "10.0.0.255",
+					Total: 256,
+					Segments: []AllocationSegment{
+						{Index: 1, Label: "10.0.0.0/27", Start: "10.0.0.0", End: "10.0.0.31", Offset: 0, Size: 32},
+						{Index: 2, Label: "10.0.0.32/27", Start: "10.0.0.32", End: "10.0.0.63", Offset: 32, Size: 32},
+					},
+					Available: &AllocationSegment{Start: "10.0.0.64", End: "10.0.0.255", Offset: 64, Size: 192},
+				},
+			}, nil
+		},
+	}}
+	model := NewAppModel(actions)
+	updated, _ := model.Update(tea.WindowSizeMsg{Width: 96, Height: 30})
+	updated, _ = updated.(AppModel).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, cmd := updated.(AppModel).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, _ = updated.(AppModel).Update(cmd())
+	view := updated.(AppModel).View().Content
+
+	for _, fragment := range []string{"ADDRESS SPACE", "10.0.0.0", "10.0.0.255", "█", "░", "ALLOCATIONS", "10.0.0.0/27", "10.0.0.32/27", "AVAILABLE", "192 addresses"} {
+		if !strings.Contains(view, fragment) {
+			t.Fatalf("allocation result view missing %q:\n%s", fragment, view)
+		}
 	}
 }

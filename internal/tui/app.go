@@ -32,7 +32,7 @@ type AppModel struct {
 	progress       ProgressModel
 	actionEvents   <-chan tea.Msg
 	resultTitle    string
-	resultOutput   string
+	result         Result
 	resultErr      error
 	resultCopy     string
 	resultStatus   string
@@ -45,7 +45,7 @@ type actionStartedMsg struct{}
 
 type actionResultMsg struct {
 	title  string
-	output string
+	result Result
 	err    error
 }
 
@@ -107,6 +107,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.resizeMenu()
 		m.resizeResultViewport()
+		if m.screen == screenResult {
+			m.setResultContent()
+		}
 	case actionStartedMsg:
 		return m, waitActionEvent(m.actionEvents)
 	case ProgressEvent:
@@ -120,7 +123,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.screen = screenResult
 		m.actionEvents = nil
 		m.resultTitle = msg.title
-		m.resultOutput = msg.output
+		m.result = msg.result
 		m.resultErr = msg.err
 		m.setResultContent()
 		return m, nil
@@ -291,8 +294,8 @@ func (m AppModel) submitForm() (tea.Model, tea.Cmd) {
 		return m, tea.Batch(m.progress.Init(), startProgressAction(m.ctx, action, values, events))
 	}
 	return m, func() tea.Msg {
-		out, err := action.Run(m.ctx, values)
-		return actionResultMsg{title: action.Title, output: out, err: err}
+		result, err := action.Run(m.ctx, values)
+		return actionResultMsg{title: action.Title, result: result, err: err}
 	}
 }
 
@@ -305,9 +308,9 @@ func startProgressAction(ctx context.Context, action Action, values map[string]s
 				case <-ctx.Done():
 				}
 			}
-			out, err := action.RunProgress(ctx, values, report)
+			result, err := action.RunProgress(ctx, values, report)
 			select {
-			case events <- actionResultMsg{title: action.Title, output: out, err: err}:
+			case events <- actionResultMsg{title: action.Title, result: result, err: err}:
 			case <-ctx.Done():
 			}
 		}()
@@ -328,7 +331,7 @@ func (m AppModel) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc", "enter", "backspace":
 			m.screen = screenMenu
 			m.resultTitle = ""
-			m.resultOutput = ""
+			m.result = Result{}
 			m.resultErr = nil
 			m.resultCopy = ""
 			m.resultStatus = ""
@@ -419,31 +422,14 @@ func (m *AppModel) resizeMenu() {
 
 func (m *AppModel) resizeResultViewport() {
 	m.resultViewport.SetWidth(max(1, m.width-panelStyle.GetHorizontalFrameSize()))
-	m.resultViewport.SetHeight(max(1, m.height-panelStyle.GetVerticalFrameSize()-4))
+	m.resultViewport.SetHeight(max(1, m.height-panelStyle.GetVerticalFrameSize()-7))
 }
 
 func (m *AppModel) setResultContent() {
 	m.resultStatus = ""
-	var display strings.Builder
-	var clipboard strings.Builder
-	if m.resultErr != nil {
-		display.WriteString(errorStyle.Render("Error: "))
-		display.WriteString(m.resultErr.Error())
-		display.WriteString("\n\n")
-		clipboard.WriteString("Error: ")
-		clipboard.WriteString(m.resultErr.Error())
-		clipboard.WriteString("\n\n")
-	}
-	if m.resultOutput != "" {
-		output := strings.TrimSuffix(m.resultOutput, "\n")
-		display.WriteString(output)
-		clipboard.WriteString(output)
-	} else if m.resultErr == nil {
-		display.WriteString(successStyle.Render("Done"))
-		clipboard.WriteString("Done")
-	}
-	m.resultCopy = clipboard.String()
-	m.resultViewport.SetContent(display.String())
+	contentWidth := max(1, m.width-panelStyle.GetHorizontalFrameSize())
+	m.resultCopy = resultClipboardText(m.result, m.resultErr)
+	m.resultViewport.SetContent(renderResultBody(m.result, m.resultErr, contentWidth))
 	m.resultViewport.GotoTop()
 }
 
@@ -462,7 +448,7 @@ func (m AppModel) renderRunning() string {
 
 func (m AppModel) renderResult() string {
 	var b strings.Builder
-	b.WriteString(titleStyle.Render(m.resultTitle + " result"))
+	b.WriteString(renderResultHeader(m.resultTitle, m.result, m.resultErr))
 	b.WriteString("\n\n")
 	b.WriteString(m.resultViewport.View())
 	b.WriteString("\n\n")

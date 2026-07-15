@@ -10,7 +10,7 @@
 - ICMP ping, TCP connection, TLS certificate, and HTTP/S endpoint checks.
 - Bounded concurrent DNS, TCP, and TLS batch checks.
 - Versioned JSON output and stable automation exit codes.
-- Searchable Bubble Tea TUI when run without arguments.
+- Searchable Bubble Tea TUI with structured result summaries and scrollable details.
 - Optional `nw` command alias in addition to `nwcli`.
 
 ## Install
@@ -53,6 +53,8 @@ Keyboard shortcuts:
 - `esc`: go back from forms and results.
 - `q`: quit outside a form; inside a form it is normal input.
 - `ctrl+c`: quit from any screen.
+
+Result pages keep status and the primary target visible above a scrollable detail view. Subnet carving adds a proportional address-space rail, color-keyed allocations, endpoint ranges, and the remaining available range.
 
 ### Subnet carving
 

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"testing"
 
 	"github.com/mathwro/nwcli/internal/tui"
@@ -44,6 +45,28 @@ func TestInteractiveActionFieldsValidateBeforeRunning(t *testing.T) {
 				t.Fatal("CIDR validator accepted invalid input")
 			}
 		}
+	}
+}
+
+func TestInteractiveSubnetBuildsStructuredAllocationResult(t *testing.T) {
+	result, err := runInteractiveSubnet(context.Background(), map[string]string{
+		"cidr":  "10.0.0.0/24",
+		"sizes": "27,27,28,28",
+	})
+	if err != nil {
+		t.Fatalf("runInteractiveSubnet returned error: %v", err)
+	}
+	if result.Headline != "10.0.0.0/24" || result.Summary != "96 of 256 addresses allocated" {
+		t.Fatalf("result heading = %q, summary = %q", result.Headline, result.Summary)
+	}
+	if result.Allocation == nil {
+		t.Fatal("Allocation = nil")
+	}
+	if len(result.Allocation.Segments) != 4 {
+		t.Fatalf("len(Segments) = %d, want 4", len(result.Allocation.Segments))
+	}
+	if result.Allocation.Available == nil || result.Allocation.Available.Size != 160 {
+		t.Fatalf("Available = %#v, want 160 addresses", result.Allocation.Available)
 	}
 }
 
