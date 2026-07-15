@@ -80,8 +80,8 @@
     "semantic_hash": ""
   },
   "internal/tui/app.go": {
-    "mtime": 1784147732.5441668,
-    "ast_hash": "840d6fbccfd946191df354345ec4fff8",
+    "mtime": 1784148609.040347,
+    "ast_hash": "bee5be8115204f97f57cdb39004c1c8b",
     "semantic_hash": ""
   },
   "internal/tui/menu.go": {
@@ -105,8 +105,8 @@
     "semantic_hash": ""
   },
   "internal/tui/tui_test.go": {
-    "mtime": 1784147557.0544155,
-    "ast_hash": "127e695967267e3e07a450d769e56581",
+    "mtime": 1784148574.812068,
+    "ast_hash": "18c63986cefa71c8a07b6570169e5030",
     "semantic_hash": ""
   },
   "main.go": {
@@ -235,8 +235,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1784148051.414958,
-    "ast_hash": "b7a10e5e2b11a9502423327b3f8df04f",
+    "mtime": 1784148627.5374787,
+    "ast_hash": "33e4a6fd6c405b92f012834230232797",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-07-14-compact-tui-redesign.md": {

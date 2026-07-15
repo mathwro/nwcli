@@ -1,15 +1,16 @@
-# Graph Report - .  (2026-07-15)
+# Graph Report - nwcli  (2026-07-15)
 
 ## Corpus Check
-- cluster-only mode — file stats not available
+- 52 files · ~23,777 words
+- Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 473 nodes · 919 edges · 25 communities (23 shown, 2 thin omitted)
-- Extraction: 83% EXTRACTED · 17% INFERRED · 0% AMBIGUOUS · INFERRED: 156 edges (avg confidence: 0.8)
+- 474 nodes · 923 edges · 25 communities (23 shown, 2 thin omitted)
+- Extraction: 83% EXTRACTED · 17% INFERRED · 0% AMBIGUOUS · INFERRED: 157 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `de41981a`
+- Built from commit: `3595cd49`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -42,10 +43,10 @@
 1. `AppModel` - 28 edges
 2. `executeForTest()` - 22 edges
 3. `newCommandError()` - 21 edges
-4. `NewAppModel()` - 16 edges
-5. `emitCommandResult()` - 14 edges
-6. `NewRootCommand()` - 14 edges
-7. `testActions()` - 14 edges
+4. `NewAppModel()` - 17 edges
+5. `testActions()` - 15 edges
+6. `emitCommandResult()` - 14 edges
+7. `NewRootCommand()` - 14 edges
 8. `Action` - 12 edges
 9. `Network Toolbox Design` - 12 edges
 10. `newBatchTLSCommand()` - 11 edges
@@ -92,8 +93,8 @@ Cohesion: 0.18
 Nodes (12): reportSingle(), Cmd, Context, Model, Msg, View, NewProgressModel(), RunProgress() (+4 more)
 
 ### Community 6 - "NewAppModel"
-Cohesion: 0.36
-Nodes (16): NewAppModel(), Context, T, testActions(), TestAppFormCtrlCQuits(), TestAppFormEscapeReturnsToMenuWithoutQuitting(), TestAppFormQEditsInputInsteadOfQuitting(), TestAppFormValidationKeepsFocusAndShowsGuidance() (+8 more)
+Cohesion: 0.35
+Nodes (17): NewAppModel(), Context, T, testActions(), TestAppFormCtrlCQuits(), TestAppFormEscapeReturnsToMenuWithoutQuitting(), TestAppFormQEditsInputInsteadOfQuitting(), TestAppFormValidationKeepsFocusAndShowsGuidance() (+9 more)
 
 ### Community 11 - "executeForTest"
 Cohesion: 0.08
@@ -160,16 +161,16 @@ Nodes (5): Compact TUI Redesign Implementation Plan, File Structure, Global Cons
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `newCommandError()` connect `newCommandError` to `ping.go`, `CheckHTTP`, `root.go`, `executeForTest`, `newTLSCommand`, `newTCPCommand`, `newBatchTLSCommand`?**
-  _High betweenness centrality (0.183) - this node is a cross-community bridge._
+  _High betweenness centrality (0.182) - this node is a cross-community bridge._
 - **Why does `Action` connect `AppModel` to `root.go`, `ProgressEvent`, `NewAppModel`?**
-  _High betweenness centrality (0.161) - this node is a cross-community bridge._
+  _High betweenness centrality (0.163) - this node is a cross-community bridge._
 - **Why does `ProgressEvent` connect `ProgressEvent` to `AppModel`, `ping.go`, `CheckHTTP`, `root.go`, `newTLSCommand`, `newTCPCommand`?**
   _High betweenness centrality (0.158) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `executeForTest()` (e.g. with `TestBatchDNSCommandWritesJSONResults()` and `TestBatchTCPCommandPreservesTargetOrder()`) actually correct?**
   _`executeForTest()` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 19 inferred relationships involving `newCommandError()` (e.g. with `batchFailure()` and `newBatchDNSCommand()`) actually correct?**
   _`newCommandError()` has 19 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 12 inferred relationships involving `NewAppModel()` (e.g. with `TestAppFormCtrlCQuits()` and `TestAppFormEscapeReturnsToMenuWithoutQuitting()`) actually correct?**
-  _`NewAppModel()` has 12 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 10 inferred relationships involving `emitCommandResult()` (e.g. with `newBatchDNSCommand()` and `newBatchTCPCommand()`) actually correct?**
-  _`emitCommandResult()` has 10 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 13 inferred relationships involving `NewAppModel()` (e.g. with `TestAppFormCtrlCQuits()` and `TestAppFormEscapeReturnsToMenuWithoutQuitting()`) actually correct?**
+  _`NewAppModel()` has 13 INFERRED edges - model-reasoned connections that need verification._
+- **What connects `github.com/mathwro/nwcli`, `actionStartedMsg`, `actionResultMsg` to the rest of the system?**
+  _55 weakly-connected nodes found - possible documentation gaps or missing edges._
