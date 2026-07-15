@@ -2,13 +2,6 @@
   "communities": {
     "0": [
       "cancelfunc",
-      "cmd_interactive_actions_test",
-      "cmd_interactive_actions_test_fieldvalidator",
-      "cmd_interactive_actions_test_go_t",
-      "cmd_interactive_actions_test_testinteractiveactionfieldsvalidatebeforerunning",
-      "cmd_interactive_actions_test_testinteractiveactionsexposenewdiagnosticswithdescriptions",
-      "cmd_interactive_actions_test_testinteractiveactionsusetogglesandplaceholders",
-      "cmd_root_interactiveactions",
       "cmd_root_runinteractivemenu",
       "internal_tui_action",
       "internal_tui_action_go_context",
@@ -40,6 +33,7 @@
       "tui_appmodel_activefield",
       "tui_appmodel_activefieldistoggle",
       "tui_appmodel_configureinput",
+      "tui_appmodel_fieldvisible",
       "tui_appmodel_init",
       "tui_appmodel_movefield",
       "tui_appmodel_openform",
@@ -79,7 +73,6 @@
       "cmd_ping_go_writer",
       "cmd_ping_newpingcommand",
       "cmd_ping_pingoutput",
-      "cmd_ping_pingresulterror",
       "cmd_ping_renderping",
       "cmd_ping_renderpingupdate",
       "cmd_pingattemptjson",
@@ -114,8 +107,6 @@
       "packetconn"
     ],
     "2": [
-      "cmd_interactive_actions_test_testinteractivesubnetbuildsstructuredallocationresult",
-      "cmd_root_runinteractivesubnet",
       "cmd_root_validateprefixes",
       "internal_subnet_render",
       "internal_subnet_render_allocationbar",
@@ -179,16 +170,26 @@
       "cmd_dns_renderdns",
       "cmd_dns_supporteddnstype",
       "cmd_dnsresultjson",
+      "cmd_interactive_actions_test",
+      "cmd_interactive_actions_test_fieldvalidator",
+      "cmd_interactive_actions_test_go_t",
+      "cmd_interactive_actions_test_testinteractiveactionfieldsvalidatebeforerunning",
+      "cmd_interactive_actions_test_testinteractiveactionsexposenewdiagnosticswithdescriptions",
+      "cmd_interactive_actions_test_testinteractiveactionsusetogglesandplaceholders",
       "cmd_interactive_actions_test_testinteractivecontinuouspingreportsliveloss",
+      "cmd_interactive_actions_test_testinteractivepingcountonlyappearsforfinitemode",
+      "cmd_interactive_actions_test_testinteractivesubnetbuildsstructuredallocationresult",
+      "cmd_ping_pingresulterror",
       "cmd_root",
       "cmd_root_boolresultfield",
       "cmd_root_go_context",
+      "cmd_root_interactiveactions",
       "cmd_root_pingprogressevent",
       "cmd_root_reportsingle",
       "cmd_root_runinteractivecidr",
       "cmd_root_runinteractivedns",
       "cmd_root_runinteractiveping",
-      "cmd_root_runinteractivetcp",
+      "cmd_root_runinteractivesubnet",
       "cmd_root_toneforbool",
       "cmd_root_validateboolean",
       "cmd_root_validatecidr",
@@ -198,20 +199,7 @@
       "cmd_root_validatehostport",
       "cmd_root_validateport",
       "cmd_root_validatepositiveinteger",
-      "cmd_root_validaterequired",
-      "cmd_tcp_go_writer",
-      "cmd_tcp_rendertcp"
-    ],
-    "5": [
-      "checks_batchitem",
-      "internal_checks_batch",
-      "internal_checks_batch_go_context",
-      "internal_checks_batch_go_t",
-      "internal_checks_batch_runbatch",
-      "internal_checks_batch_test",
-      "internal_checks_batch_test_go_t",
-      "internal_checks_batch_test_testrunbatchboundsconcurrencyandpreservesorder",
-      "internal_checks_batch_test_testrunbatchusessafedefaultconcurrency"
+      "cmd_root_validaterequired"
     ],
     "6": [
       "internal_tui_app_newappmodel",
@@ -237,6 +225,7 @@
       "internal_tui_tui_test_testapprunningviewshowsactionprogress",
       "internal_tui_tui_test_testappsubmitrunsactionandshowsresultinview",
       "internal_tui_tui_test_testapptextfieldshowsplaceholderandacceptsdirectinput",
+      "internal_tui_tui_test_testapptogglehidesandskipsirrelevantfields",
       "internal_tui_tui_test_testappviewusesaltscreen"
     ],
     "7": [
@@ -309,6 +298,7 @@
       "main_main"
     ],
     "12": [
+      "checks_batchitem",
       "cmd_batch",
       "cmd_batch_addbatchflags",
       "cmd_batch_batchfailure",
@@ -345,12 +335,14 @@
       "cmd_subnetblockoutput",
       "cmd_subnetplanjson",
       "cmd_subnetrangeoutput",
-      "cmd_tcp",
-      "cmd_tcp_go_command",
-      "cmd_tcp_newtcpcommand",
-      "cmd_tcp_tcpoutput",
-      "cmd_tcp_tcpresulterror",
-      "cmd_tcpresultjson"
+      "internal_checks_batch",
+      "internal_checks_batch_go_context",
+      "internal_checks_batch_go_t",
+      "internal_checks_batch_runbatch",
+      "internal_checks_batch_test",
+      "internal_checks_batch_test_go_t",
+      "internal_checks_batch_test_testrunbatchboundsconcurrencyandpreservesorder",
+      "internal_checks_batch_test_testrunbatchusessafedefaultconcurrency"
     ],
     "13": [
       "certpool",
@@ -386,6 +378,15 @@
       "checks_contextdialfunc_dialcontext",
       "checks_tcpoptions",
       "checks_tcpresult",
+      "cmd_root_runinteractivetcp",
+      "cmd_tcp",
+      "cmd_tcp_go_command",
+      "cmd_tcp_go_writer",
+      "cmd_tcp_newtcpcommand",
+      "cmd_tcp_rendertcp",
+      "cmd_tcp_tcpoutput",
+      "cmd_tcp_tcpresulterror",
+      "cmd_tcpresultjson",
       "conn",
       "internal_checks_tcp",
       "internal_checks_tcp_checktcp",
@@ -574,21 +575,20 @@
     ]
   },
   "cohesion": {
-    "0": 0.07305669199298656,
-    "1": 0.10693877551020409,
-    "2": 0.16,
+    "0": 0.08490566037735849,
+    "1": 0.10884353741496598,
+    "2": 0.17391304347826086,
     "3": 0.13105413105413105,
-    "4": 0.1010752688172043,
-    "5": 0.3333333333333333,
-    "6": 0.2572463768115942,
+    "4": 0.08636977058029689,
+    "6": 0.24666666666666667,
     "7": 0.6666666666666666,
     "8": 1.0,
     "9": 1.0,
     "10": 1.0,
     "11": 0.062409288824383166,
-    "12": 0.1173054587688734,
+    "12": 0.10505050505050505,
     "13": 0.13230769230769232,
-    "14": 0.20833333333333334,
+    "14": 0.13666666666666666,
     "15": 0.23809523809523808,
     "16": 0.10526315789473684,
     "17": 0.10931174089068826,
@@ -603,7 +603,7 @@
     {
       "id": "tui_appmodel",
       "label": "AppModel",
-      "degree": 32
+      "degree": 33
     },
     {
       "id": "cmd_command_test_executefortest",
@@ -613,7 +613,7 @@
     {
       "id": "internal_tui_app_newappmodel",
       "label": "NewAppModel()",
-      "degree": 23
+      "degree": 24
     },
     {
       "id": "cmd_output_newcommanderror",
@@ -664,33 +664,11 @@
       "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; peripheral node `validateCIDR()` unexpectedly reaches hub `InspectCIDR()`"
     },
     {
-      "source": "newBatchTCPCommand()",
-      "target": "RunBatch()",
+      "source": "pingResultError()",
+      "target": "IsICMPPermissionError()",
       "source_files": [
-        "cmd/batch.go",
-        "internal/checks/batch.go"
-      ],
-      "confidence": "INFERRED",
-      "relation": "calls",
-      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
-    },
-    {
-      "source": "newBatchDNSCommand()",
-      "target": "RunBatch()",
-      "source_files": [
-        "cmd/batch.go",
-        "internal/checks/batch.go"
-      ],
-      "confidence": "INFERRED",
-      "relation": "calls",
-      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
-    },
-    {
-      "source": "newBatchTLSCommand()",
-      "target": "RunBatch()",
-      "source_files": [
-        "cmd/batch.go",
-        "internal/checks/batch.go"
+        "cmd/ping.go",
+        "internal/checks/ping.go"
       ],
       "confidence": "INFERRED",
       "relation": "calls",
@@ -706,22 +684,44 @@
       "confidence": "INFERRED",
       "relation": "calls",
       "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; peripheral node `main()` unexpectedly reaches hub `Execute()`"
+    },
+    {
+      "source": "runInteractiveSubnet()",
+      "target": "Render()",
+      "source_files": [
+        "cmd/root.go",
+        "internal/subnet/render.go"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "runInteractiveSubnet()",
+      "target": "ParsePrefixes()",
+      "source_files": [
+        "cmd/root.go",
+        "internal/subnet/subnet.go"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
     }
   ],
   "questions": [
     {
       "type": "bridge_node",
-      "question": "Why does `Result` connect `Result` to `AppModel`, `Plan`, `CheckHTTP`, `root.go`, `runInteractiveTLS`?",
-      "why": "High betweenness centrality (0.178) - this node is a cross-community bridge."
+      "question": "Why does `Result` connect `Result` to `AppModel`, `CheckHTTP`, `root.go`, `runInteractiveTLS`, `runInteractiveTCP`?",
+      "why": "High betweenness centrality (0.180) - this node is a cross-community bridge."
     },
     {
       "type": "bridge_node",
-      "question": "Why does `newCommandError()` connect `newCommandError` to `ping.go`, `CheckHTTP`, `root.go`, `executeForTest`, `runInteractiveTLS`?",
-      "why": "High betweenness centrality (0.170) - this node is a cross-community bridge."
+      "question": "Why does `newCommandError()` connect `newCommandError` to `ping.go`, `CheckHTTP`, `root.go`, `executeForTest`, `runInteractiveTLS`, `runInteractiveTCP`?",
+      "why": "High betweenness centrality (0.168) - this node is a cross-community bridge."
     },
     {
       "type": "bridge_node",
-      "question": "Why does `NewRootCommand()` connect `executeForTest` to `ping.go`, `CheckHTTP`, `root.go`, `newCommandError`, `runInteractiveTLS`?",
+      "question": "Why does `NewRootCommand()` connect `executeForTest` to `ping.go`, `CheckHTTP`, `root.go`, `newCommandError`, `runInteractiveTLS`, `runInteractiveTCP`?",
       "why": "High betweenness centrality (0.135) - this node is a cross-community bridge."
     },
     {
@@ -731,8 +731,8 @@
     },
     {
       "type": "verify_inferred",
-      "question": "Are the 19 inferred relationships involving `NewAppModel()` (e.g. with `TestAppBooleanFieldUsesToggleControl()` and `TestAppFormCtrlCQuits()`) actually correct?",
-      "why": "`NewAppModel()` has 19 INFERRED edges - model-reasoned connections that need verification."
+      "question": "Are the 20 inferred relationships involving `NewAppModel()` (e.g. with `TestAppBooleanFieldUsesToggleControl()` and `TestAppFormCtrlCQuits()`) actually correct?",
+      "why": "`NewAppModel()` has 20 INFERRED edges - model-reasoned connections that need verification."
     },
     {
       "type": "verify_inferred",

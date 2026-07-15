@@ -1,8 +1,7 @@
-# Graph Report - nwcli  (2026-07-16)
+# Graph Report - .  (2026-07-16)
 
 ## Corpus Check
-- 54 files · ~28,266 words
-- Verdict: corpus is large enough that graph structure adds value.
+- cluster-only mode — file stats not available
 
 ## Summary
 - 527 nodes · 1097 edges · 23 communities (21 shown, 2 thin omitted)
@@ -10,7 +9,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3c55a63f`
+- Built from commit: `b0a83936`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -26,7 +25,7 @@
 - executeForTest
 - newCommandError
 - runInteractiveTLS
-- CheckTCP
+- runInteractiveTCP
 - calc.go
 - Network Toolbox Design
 - Result
@@ -102,7 +101,7 @@ Nodes (38): BatchItem, addBatchFlags(), batchFailure(), Command, newBatchCommand
 Cohesion: 0.13
 Nodes (23): CertPool, CertificateInfo, TLSOptions, TLSResult, certificateJSON, runInteractiveTLS(), Command, Duration (+15 more)
 
-### Community 14 - "CheckTCP"
+### Community 14 - "runInteractiveTCP"
 Cohesion: 0.14
 Nodes (21): ContextDialer, contextDialFunc, TCPOptions, TCPResult, runInteractiveTCP(), Command, Writer, newTCPCommand() (+13 more)
 
@@ -150,11 +149,11 @@ Nodes (5): Compact TUI Redesign Implementation Plan, File Structure, Global Cons
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Result` connect `Result` to `AppModel`, `CheckHTTP`, `root.go`, `runInteractiveTLS`, `CheckTCP`?**
+- **Why does `Result` connect `Result` to `AppModel`, `CheckHTTP`, `root.go`, `runInteractiveTLS`, `runInteractiveTCP`?**
   _High betweenness centrality (0.180) - this node is a cross-community bridge._
-- **Why does `newCommandError()` connect `newCommandError` to `ping.go`, `CheckHTTP`, `root.go`, `executeForTest`, `runInteractiveTLS`, `CheckTCP`?**
+- **Why does `newCommandError()` connect `newCommandError` to `ping.go`, `CheckHTTP`, `root.go`, `executeForTest`, `runInteractiveTLS`, `runInteractiveTCP`?**
   _High betweenness centrality (0.168) - this node is a cross-community bridge._
-- **Why does `NewRootCommand()` connect `executeForTest` to `ping.go`, `CheckHTTP`, `root.go`, `newCommandError`, `runInteractiveTLS`, `CheckTCP`?**
+- **Why does `NewRootCommand()` connect `executeForTest` to `ping.go`, `CheckHTTP`, `root.go`, `newCommandError`, `runInteractiveTLS`, `runInteractiveTCP`?**
   _High betweenness centrality (0.135) - this node is a cross-community bridge._
 - **Are the 20 inferred relationships involving `executeForTest()` (e.g. with `TestBatchDNSCommandWritesJSONResults()` and `TestBatchTCPCommandPreservesTargetOrder()`) actually correct?**
   _`executeForTest()` has 20 INFERRED edges - model-reasoned connections that need verification._
