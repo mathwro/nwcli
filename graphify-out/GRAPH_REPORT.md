@@ -1,16 +1,16 @@
 # Graph Report - nwcli  (2026-07-15)
 
 ## Corpus Check
-- 52 files · ~23,777 words
+- 53 files · ~25,411 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 474 nodes · 923 edges · 25 communities (23 shown, 2 thin omitted)
-- Extraction: 83% EXTRACTED · 17% INFERRED · 0% AMBIGUOUS · INFERRED: 157 edges (avg confidence: 0.8)
+- 497 nodes · 991 edges · 25 communities (23 shown, 2 thin omitted)
+- Extraction: 84% EXTRACTED · 16% INFERRED · 0% AMBIGUOUS · INFERRED: 163 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3595cd49`
+- Built from commit: `ea24770d`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -40,16 +40,16 @@
 - Compact TUI Redesign Implementation Plan
 
 ## God Nodes (most connected - your core abstractions)
-1. `AppModel` - 28 edges
+1. `AppModel` - 29 edges
 2. `executeForTest()` - 22 edges
 3. `newCommandError()` - 21 edges
-4. `NewAppModel()` - 17 edges
-5. `testActions()` - 15 edges
-6. `emitCommandResult()` - 14 edges
-7. `NewRootCommand()` - 14 edges
-8. `Action` - 12 edges
-9. `Network Toolbox Design` - 12 edges
-10. `newBatchTLSCommand()` - 11 edges
+4. `NewAppModel()` - 19 edges
+5. `Result` - 17 edges
+6. `testActions()` - 15 edges
+7. `emitCommandResult()` - 14 edges
+8. `NewRootCommand()` - 14 edges
+9. `Action` - 13 edges
+10. `Network Toolbox Design` - 12 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `validateCIDR()` --calls--> `InspectCIDR()`  [INFERRED]
@@ -69,8 +69,8 @@
 ## Communities (25 total, 2 thin omitted)
 
 ### Community 0 - "AppModel"
-Cohesion: 0.09
-Nodes (21): Context, appView(), Cmd, Context, Model, Msg, View, isCtrlC() (+13 more)
+Cohesion: 0.12
+Nodes (16): appView(), Cmd, Context, Model, Msg, View, isCtrlC(), keyName() (+8 more)
 
 ### Community 1 - "ping.go"
 Cohesion: 0.11
@@ -81,28 +81,28 @@ Cohesion: 0.17
 Nodes (21): runInteractiveSubnet(), validatePrefixes(), allocationBar(), Writer, Render(), ipToUint32(), ParsePrefixes(), Plan() (+13 more)
 
 ### Community 3 - "CheckHTTP"
-Cohesion: 0.13
-Nodes (23): HTTPOptions, HTTPResult, roundTripFunc, Client, Command, Writer, httpOutput(), httpResultError() (+15 more)
+Cohesion: 0.20
+Nodes (15): HTTPOptions, HTTPResult, roundTripFunc, Client, CheckHTTP(), Context, Duration, T (+7 more)
 
 ### Community 4 - "root.go"
-Cohesion: 0.08
-Nodes (25): dnsOutput(), dnsResultError(), Command, Writer, newDNSCommand(), renderDNS(), supportedDNSType(), dnsResultJSON (+17 more)
+Cohesion: 0.09
+Nodes (26): dnsOutput(), dnsResultError(), Command, Writer, newDNSCommand(), renderDNS(), supportedDNSType(), dnsResultJSON (+18 more)
 
 ### Community 5 - "ProgressEvent"
-Cohesion: 0.18
-Nodes (12): reportSingle(), Cmd, Context, Model, Msg, View, NewProgressModel(), RunProgress() (+4 more)
+Cohesion: 0.19
+Nodes (11): Cmd, Context, Model, Msg, View, NewProgressModel(), RunProgress(), waitProgressEvent() (+3 more)
 
 ### Community 6 - "NewAppModel"
-Cohesion: 0.35
-Nodes (17): NewAppModel(), Context, T, testActions(), TestAppFormCtrlCQuits(), TestAppFormEscapeReturnsToMenuWithoutQuitting(), TestAppFormQEditsInputInsteadOfQuitting(), TestAppFormValidationKeepsFocusAndShowsGuidance() (+9 more)
+Cohesion: 0.31
+Nodes (19): NewAppModel(), Context, T, testActions(), TestAppFormCtrlCQuits(), TestAppFormEscapeReturnsToMenuWithoutQuitting(), TestAppFormQEditsInputInsteadOfQuitting(), TestAppFormValidationKeepsFocusAndShowsGuidance() (+11 more)
 
 ### Community 11 - "executeForTest"
-Cohesion: 0.08
-Nodes (34): T, TestBatchDNSCommandWritesJSONResults(), TestBatchTCPCommandPreservesTargetOrder(), TestBatchTLSCommandReturnsUnhealthyForExpiringCertificate(), executeForTest(), T, TestHTTPCommandRejectsMissingHost(), TestInteractiveActionsUseTUIAppFields() (+26 more)
+Cohesion: 0.07
+Nodes (39): T, TestBatchDNSCommandWritesJSONResults(), TestBatchTCPCommandPreservesTargetOrder(), TestBatchTLSCommandReturnsUnhealthyForExpiringCertificate(), executeForTest(), T, TestHTTPCommandRejectsMissingHost(), TestInteractiveActionsUseTUIAppFields() (+31 more)
 
 ### Community 12 - "newCommandError"
-Cohesion: 0.17
-Nodes (23): cidrInfoJSON, commandError, emitCommandResult(), Command, Writer, newCommandError(), validateOutputFormat(), writeJSONOutput() (+15 more)
+Cohesion: 0.11
+Nodes (38): BatchItem, addBatchFlags(), batchFailure(), Command, newBatchCommand(), newBatchDNSCommand(), newBatchTCPCommand(), newBatchTLSCommand() (+30 more)
 
 ### Community 13 - "newTLSCommand"
 Cohesion: 0.13
@@ -121,24 +121,24 @@ Cohesion: 0.11
 Nodes (18): Acceptance Criteria, AGENTS.md Content, Architecture, Command Design, Current Project State, Dependencies, Error Handling, Goal (+10 more)
 
 ### Community 17 - "newBatchTLSCommand"
-Cohesion: 0.25
-Nodes (15): BatchItem, addBatchFlags(), batchFailure(), Command, newBatchCommand(), newBatchDNSCommand(), newBatchTCPCommand(), newBatchTLSCommand() (+7 more)
+Cohesion: 0.21
+Nodes (18): Builder, renderAllocationMap(), renderAllocationRail(), renderRailEndpoints(), renderResultBody(), renderResultFields(), renderResultHeader(), resultClipboardText() (+10 more)
 
 ### Community 18 - "Usage"
 Cohesion: 0.12
 Nodes (15): Bounded batch checks, CIDR calculator, Development, DNS diagnostics, Features, HTTP/S check, Install, Interactive mode (+7 more)
 
 ### Community 19 - "CheckDNS"
-Cohesion: 0.29
-Nodes (12): DNSOptions, DNSResolver, DNSResult, CheckDNS(), dnsResolver(), Context, Duration, lookupDNSRecords() (+4 more)
+Cohesion: 0.15
+Nodes (17): DNSOptions, DNSResolver, DNSResult, stubDNSResolver, CheckDNS(), dnsResolver(), Context, Duration (+9 more)
 
 ### Community 20 - "Compact TUI Redesign"
 Cohesion: 0.15
 Nodes (12): Acceptance Criteria, Architecture, Compact TUI Redesign, Error Handling, Goal, In Scope, Interaction Design, Out of Scope (+4 more)
 
 ### Community 21 - "stubDNSResolver"
-Cohesion: 0.31
-Nodes (5): stubDNSResolver, Context, IPAddr, MX, NS
+Cohesion: 0.19
+Nodes (10): fieldValidator(), T, TestInteractiveActionFieldsValidateBeforeRunning(), TestInteractiveActionsExposeNewDiagnosticsWithDescriptions(), TestInteractiveSubnetBuildsStructuredAllocationResult(), interactiveActions(), Context, Action (+2 more)
 
 ### Community 22 - "File Structure"
 Cohesion: 0.20
@@ -153,24 +153,24 @@ Cohesion: 0.33
 Nodes (5): Compact TUI Redesign Implementation Plan, File Structure, Global Constraints, Task 1: TUI App State and Navigation, Task 2: Command Integration and Smoke Tests
 
 ## Knowledge Gaps
-- **55 isolated node(s):** `github.com/mathwro/nwcli`, `actionStartedMsg`, `actionResultMsg`, `Project Purpose`, `Commands` (+50 more)
+- **54 isolated node(s):** `github.com/mathwro/nwcli`, `actionStartedMsg`, `Project Purpose`, `Commands`, `Package Boundaries` (+49 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **2 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `newCommandError()` connect `newCommandError` to `ping.go`, `CheckHTTP`, `root.go`, `executeForTest`, `newTLSCommand`, `newTCPCommand`, `newBatchTLSCommand`?**
-  _High betweenness centrality (0.182) - this node is a cross-community bridge._
-- **Why does `Action` connect `AppModel` to `root.go`, `ProgressEvent`, `NewAppModel`?**
-  _High betweenness centrality (0.163) - this node is a cross-community bridge._
-- **Why does `ProgressEvent` connect `ProgressEvent` to `AppModel`, `ping.go`, `CheckHTTP`, `root.go`, `newTLSCommand`, `newTCPCommand`?**
-  _High betweenness centrality (0.158) - this node is a cross-community bridge._
+- **Why does `Result` connect `newBatchTLSCommand` to `AppModel`, `ping.go`, `Plan`, `root.go`, `newTLSCommand`, `newTCPCommand`, `stubDNSResolver`?**
+  _High betweenness centrality (0.188) - this node is a cross-community bridge._
+- **Why does `newCommandError()` connect `newCommandError` to `ping.go`, `root.go`, `executeForTest`, `newTLSCommand`, `newTCPCommand`?**
+  _High betweenness centrality (0.168) - this node is a cross-community bridge._
+- **Why does `NewRootCommand()` connect `executeForTest` to `ping.go`, `root.go`, `newCommandError`, `newTLSCommand`, `newTCPCommand`?**
+  _High betweenness centrality (0.133) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `executeForTest()` (e.g. with `TestBatchDNSCommandWritesJSONResults()` and `TestBatchTCPCommandPreservesTargetOrder()`) actually correct?**
   _`executeForTest()` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 19 inferred relationships involving `newCommandError()` (e.g. with `batchFailure()` and `newBatchDNSCommand()`) actually correct?**
   _`newCommandError()` has 19 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 13 inferred relationships involving `NewAppModel()` (e.g. with `TestAppFormCtrlCQuits()` and `TestAppFormEscapeReturnsToMenuWithoutQuitting()`) actually correct?**
-  _`NewAppModel()` has 13 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `github.com/mathwro/nwcli`, `actionStartedMsg`, `actionResultMsg` to the rest of the system?**
-  _55 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Are the 15 inferred relationships involving `NewAppModel()` (e.g. with `TestAppFormCtrlCQuits()` and `TestAppFormEscapeReturnsToMenuWithoutQuitting()`) actually correct?**
+  _`NewAppModel()` has 15 INFERRED edges - model-reasoned connections that need verification._
+- **What connects `github.com/mathwro/nwcli`, `actionStartedMsg`, `Project Purpose` to the rest of the system?**
+  _54 weakly-connected nodes found - possible documentation gaps or missing edges._

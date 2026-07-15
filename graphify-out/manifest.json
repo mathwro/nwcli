@@ -1,12 +1,12 @@
 {
   "cmd/command_test.go": {
-    "mtime": 1784147878.7730012,
-    "ast_hash": "0a9b5459339dc4f89c6b4fcdd6271ff7",
+    "mtime": 1784148895.3339784,
+    "ast_hash": "e56ccc2d2a2fcaf0fbac08e284eb629f",
     "semantic_hash": ""
   },
   "cmd/http.go": {
-    "mtime": 1784147490.9936583,
-    "ast_hash": "f87046fb702ac463573148632fddae25",
+    "mtime": 1784148895.353329,
+    "ast_hash": "d843f337dfc3e616555a95aad00f324f",
     "semantic_hash": ""
   },
   "cmd/nw/main.go": {
@@ -20,23 +20,23 @@
     "semantic_hash": "da54c0ffaf8cc7cf650d376793de7c11"
   },
   "cmd/ping.go": {
-    "mtime": 1784147490.994174,
-    "ast_hash": "8d6027382110d585170a192d3161032a",
+    "mtime": 1784148895.3720243,
+    "ast_hash": "9eb7493fe50bcd78ab233dceb5e24d9f",
     "semantic_hash": ""
   },
   "cmd/root.go": {
-    "mtime": 1784147860.8425121,
-    "ast_hash": "cb1b94f79d815573f2f655a7b41f0b2d",
+    "mtime": 1784149560.4054327,
+    "ast_hash": "97c755bb26dbec93e90396a3c373ca05",
     "semantic_hash": ""
   },
   "cmd/subnet.go": {
-    "mtime": 1784147242.3434155,
-    "ast_hash": "30b2f7f957e24d13d19065d530d1690b",
+    "mtime": 1784148895.3839839,
+    "ast_hash": "92a2cf85dbaf279eb91a92bba3610703",
     "semantic_hash": ""
   },
   "go.mod": {
-    "mtime": 1784148067.8038714,
-    "ast_hash": "cabf6276f554b38d4133750a0998404d",
+    "mtime": 1784148895.4111538,
+    "ast_hash": "855f15bd1077494382374d886bd902c0",
     "semantic_hash": ""
   },
   "internal/checks/http.go": {
@@ -75,13 +75,13 @@
     "semantic_hash": "77238a1ea6dc888b000cd9386844b3ba"
   },
   "internal/tui/action.go": {
-    "mtime": 1784147739.387819,
-    "ast_hash": "d2dfac6e27b66828ee56d45c32e58443",
+    "mtime": 1784149560.3970582,
+    "ast_hash": "52577cd685fde83a4e135f44832f5cd2",
     "semantic_hash": ""
   },
   "internal/tui/app.go": {
-    "mtime": 1784148609.040347,
-    "ast_hash": "bee5be8115204f97f57cdb39004c1c8b",
+    "mtime": 1784149560.3991451,
+    "ast_hash": "2e64e667cdf352869e0d9a9be9ebc984",
     "semantic_hash": ""
   },
   "internal/tui/menu.go": {
@@ -100,13 +100,13 @@
     "semantic_hash": "47c82ac71e7b49b92969d15a3169a737"
   },
   "internal/tui/styles.go": {
-    "mtime": 1784147739.3883734,
-    "ast_hash": "fa7233fbe8f7dedb7074f1d77b63eade",
+    "mtime": 1784149560.3997025,
+    "ast_hash": "b84719046f451188fc4da9a357cc3cf8",
     "semantic_hash": ""
   },
   "internal/tui/tui_test.go": {
-    "mtime": 1784148574.812068,
-    "ast_hash": "18c63986cefa71c8a07b6570169e5030",
+    "mtime": 1784149560.4049127,
+    "ast_hash": "a350e29baeb64d4b99a53192c56fb951",
     "semantic_hash": ""
   },
   "main.go": {
@@ -115,118 +115,118 @@
     "semantic_hash": "0e463f5df93eac78acc4a1a6934d97d1"
   },
   "cmd/batch.go": {
-    "mtime": 1784147403.99296,
-    "ast_hash": "12516c1b83a12404b9b960979b55a6cd",
+    "mtime": 1784148895.3235652,
+    "ast_hash": "6adfeac93999cde5bf11f8740954065b",
     "semantic_hash": ""
   },
   "cmd/batch_test.go": {
-    "mtime": 1784147317.964986,
-    "ast_hash": "869882ba927978879210fe25e794c8c5",
+    "mtime": 1784148895.3282042,
+    "ast_hash": "d9eb08cfabb239567d08f46a3cd4c42f",
     "semantic_hash": ""
   },
   "cmd/connectivity_output_test.go": {
-    "mtime": 1784147438.2518587,
-    "ast_hash": "e791cdf1e628b60ea3d709cd6995bd9d",
+    "mtime": 1784148895.3381877,
+    "ast_hash": "bc3a22ce0dfccc20c0cd690fccbd9223",
     "semantic_hash": ""
   },
   "cmd/dns.go": {
-    "mtime": 1784147412.9570308,
-    "ast_hash": "63d72fc22d13e2cd5f3cfbd97a169523",
+    "mtime": 1784148895.342356,
+    "ast_hash": "602b7be445e788a7a8533aa694b63ebe",
     "semantic_hash": ""
   },
   "cmd/dns_test.go": {
-    "mtime": 1784146740.2421143,
-    "ast_hash": "1210f733ade0a1f9771bdf462e24ae30",
+    "mtime": 1784148895.347039,
+    "ast_hash": "85e9bc95583492bb12ffe5eb52de0922",
     "semantic_hash": ""
   },
   "cmd/interactive_actions_test.go": {
-    "mtime": 1784147787.0476,
-    "ast_hash": "1eb11cc9c37d4a1f8032cafcc0975a94",
+    "mtime": 1784149560.4049127,
+    "ast_hash": "ed57eda4dcdcb3d34322f29a0b5e0124",
     "semantic_hash": ""
   },
   "cmd/output.go": {
-    "mtime": 1784147242.3381982,
-    "ast_hash": "d626a81a39e3d685f9b55db4486be064",
+    "mtime": 1784148895.3616014,
+    "ast_hash": "74441b512a2a360e7464860fa1895136",
     "semantic_hash": ""
   },
   "cmd/output_test.go": {
-    "mtime": 1784146644.1951613,
-    "ast_hash": "dc4ef0f45ff214fa648571a718a2fe04",
+    "mtime": 1784148895.3662438,
+    "ast_hash": "06702e7bb6b4b661c03185cdd1ba7ef7",
     "semantic_hash": ""
   },
   "cmd/subnet_calc_test.go": {
-    "mtime": 1784147190.7866006,
-    "ast_hash": "15972758b8c0d78f5757262445eaeaf0",
+    "mtime": 1784148895.388645,
+    "ast_hash": "934ff852f97ed78835b06e788fb91552",
     "semantic_hash": ""
   },
   "cmd/tcp.go": {
-    "mtime": 1784147404.0090835,
-    "ast_hash": "c657763de32c5c0dfbf7b311f7525ef1",
+    "mtime": 1784148895.392825,
+    "ast_hash": "b65e6c93f2c0f64cf76aaf32bf13dcba",
     "semantic_hash": ""
   },
   "cmd/tcp_test.go": {
-    "mtime": 1784146865.5764563,
-    "ast_hash": "4e899ee076ff926f0a246b1ff88f3c1a",
+    "mtime": 1784148895.3975482,
+    "ast_hash": "19a4ad01cc062797c9d9c750e238b010",
     "semantic_hash": ""
   },
   "cmd/tls.go": {
-    "mtime": 1784147404.01633,
-    "ast_hash": "414aadc49692e001f780d9d0fec03c46",
+    "mtime": 1784148895.4022825,
+    "ast_hash": "b5564243f8b658e7a07b9986307f3802",
     "semantic_hash": ""
   },
   "cmd/tls_test.go": {
-    "mtime": 1784147008.0761878,
-    "ast_hash": "5fc10f7a72d94f71e4e58f659d76920b",
+    "mtime": 1784148895.406393,
+    "ast_hash": "127d19b5c847c316c002f0055ee5499c",
     "semantic_hash": ""
   },
   "internal/checks/batch.go": {
-    "mtime": 1784147287.5418835,
-    "ast_hash": "74c2698d06319c0969b3eebc498b4709",
+    "mtime": 1784148895.800664,
+    "ast_hash": "18cd1b0acdd098c296b276afc7bfe896",
     "semantic_hash": ""
   },
   "internal/checks/batch_test.go": {
-    "mtime": 1784147270.8142278,
-    "ast_hash": "ce20f313bd5445729bd324935963b008",
+    "mtime": 1784148895.8054268,
+    "ast_hash": "aa1f99008041a134a0f3ce103b2a2fd3",
     "semantic_hash": ""
   },
   "internal/checks/dns.go": {
-    "mtime": 1784146707.4250438,
-    "ast_hash": "6b7007b06b1388f2dbd7574a8eb3e47f",
+    "mtime": 1784148895.8106515,
+    "ast_hash": "715ebc80acfb41ff6072d0a2934ff7c2",
     "semantic_hash": ""
   },
   "internal/checks/dns_test.go": {
-    "mtime": 1784146713.0356603,
-    "ast_hash": "be3a249ef0be973960e19085ea369e3a",
+    "mtime": 1784148895.8158417,
+    "ast_hash": "1a0fe9adfb2f77fdfa53a74125c54b97",
     "semantic_hash": ""
   },
   "internal/checks/tcp.go": {
-    "mtime": 1784146842.933649,
-    "ast_hash": "860ea0038642c8319b93e7a5b192a419",
+    "mtime": 1784148895.820994,
+    "ast_hash": "0357abeaee37bfff035f5ab4bd90829b",
     "semantic_hash": ""
   },
   "internal/checks/tcp_test.go": {
-    "mtime": 1784146822.124667,
-    "ast_hash": "bb73bab26f38faeea4276703b616d174",
+    "mtime": 1784148895.826165,
+    "ast_hash": "510c62f09efc57cd1fd93e38f3661f95",
     "semantic_hash": ""
   },
   "internal/checks/tls.go": {
-    "mtime": 1784146961.0620072,
-    "ast_hash": "b7d27ecce2a3cfc6268f2ade5a1ad892",
+    "mtime": 1784148895.8314416,
+    "ast_hash": "2e7b2d58edd80772bd7ce3ba3faaaf5b",
     "semantic_hash": ""
   },
   "internal/checks/tls_test.go": {
-    "mtime": 1784146927.3540556,
-    "ast_hash": "92f9541bccacba1b60d788ae5ba6b601",
+    "mtime": 1784148895.836166,
+    "ast_hash": "086ad394d63fab40f9f46498a06df90c",
     "semantic_hash": ""
   },
   "internal/subnet/calc.go": {
-    "mtime": 1784147162.9913652,
-    "ast_hash": "ed5cb102e18d30a6fceeb2cc8df41487",
+    "mtime": 1784148895.8439631,
+    "ast_hash": "1b30b890ca3b441d4ad627595e88e5f6",
     "semantic_hash": ""
   },
   "internal/subnet/calc_test.go": {
-    "mtime": 1784147116.593485,
-    "ast_hash": "f71776cb089a68337ad45740dbf28c04",
+    "mtime": 1784148895.8493173,
+    "ast_hash": "799caeeba9a89a46bf7e6fe14d368a4f",
     "semantic_hash": ""
   },
   "AGENTS.md": {
@@ -235,8 +235,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1784148627.5374787,
-    "ast_hash": "33e4a6fd6c405b92f012834230232797",
+    "mtime": 1784149923.2757585,
+    "ast_hash": "6b2ba119c75288216ef29d57762f578f",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-07-14-compact-tui-redesign.md": {
@@ -257,6 +257,11 @@
   "docs/superpowers/specs/2026-07-14-network-toolbox-design.md": {
     "mtime": 1784065741.8863802,
     "ast_hash": "0da897ac5912104d5c9bcc46652e3f6a",
+    "semantic_hash": ""
+  },
+  "internal/tui/result.go": {
+    "mtime": 1784149382.3342073,
+    "ast_hash": "0bd62d3778efc5480911efd331dce2cc",
     "semantic_hash": ""
   }
 }
