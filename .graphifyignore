@@ -1,0 +1,9 @@
+# Dependency and build output directories
+node_modules/
+vendor/
+dist/
+build/
+
+# Generated source files
+*.generated.py
+*.generated.go
