@@ -2,7 +2,7 @@
 
 ## Project Purpose
 
-`nwcli` is a Go network toolbox for subnet planning and connectivity checks. The first feature set includes IPv4 subnet carving, ICMP ping checks, HTTP/S port checks, and Bubble Tea terminal UI helpers.
+`nwcli` is a Go network toolbox for subnet planning and connectivity checks. It includes IPv4 subnet carving, dual-stack CIDR calculations, DNS diagnostics, ICMP ping, TCP, TLS, HTTP/S checks, bounded batch execution, structured output, and an interactive Bubble Tea terminal UI.
 
 ## Commands
 
@@ -19,9 +19,21 @@
 ## Package Boundaries
 
 - `cmd/` contains Cobra command wiring, flags, command output, and interactive action wiring.
-- `internal/subnet/` contains deterministic IPv4 CIDR allocation and rendering.
-- `internal/checks/` contains network checks and result aggregation.
-- `internal/tui/` contains Bubble Tea models, prompts, menus, and progress UI.
+- `internal/subnet/` contains deterministic subnet allocation and dual-stack CIDR calculations.
+- `internal/checks/` contains network checks and bounded result aggregation.
+- `internal/tui/` contains Bubble Tea models, prompts, menus, progress UI, and structured result rendering.
+
+## Terminal UI Guidelines
+
+- Treat the TUI as a compact network console: quiet framing, strong information hierarchy, and color that communicates state rather than decorating the screen.
+- Reuse the shared Lip Gloss styles in `internal/tui/styles.go`. Keep the established cyan/blue signal palette, green success, amber warning, coral failure, bright data text, and muted secondary text.
+- Build interactive action output with `tui.Result`: a stable status header, primary target headline, concise summary, overview fields, and optional detail sections. Keep the original plain-text output in `Result.Text` for clipboard use.
+- Put result details in the shared viewport and preserve responsive resizing. Do not create action-specific screen models when the structured result renderer can express the content.
+- Reserve bespoke visuals for data with spatial meaning. Subnet carving uses the proportional address-space rail, color-keyed numbered allocations, explicit endpoints, address counts, and a visibly distinct available range.
+- Never rely on color alone. Pair state colors with text or glyphs, and pair allocation colors with stable indices, CIDRs, ranges, and counts.
+- Use existing Bubbles components for lists, text input, viewports, and progress. Keep the established keys: arrows or `j`/`k` navigate, `/` filters, `enter` selects or submits, `c` copies results, `esc` goes back, and `ctrl+c` quits.
+- Keep errors actionable and in context. Preserve any partial structured result, label the screen `NEEDS ATTENTION`, and explain the concrete failure instead of showing a generic error state.
+- Test observable hierarchy and interaction rather than ANSI escape sequences. Visual changes also require a PTY smoke check at a practical terminal size.
 
 ## Development Rules
 
