@@ -1,16 +1,16 @@
 # Graph Report - nwcli  (2026-07-15)
 
 ## Corpus Check
-- 53 files · ~25,411 words
+- 53 files · ~25,680 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 497 nodes · 991 edges · 25 communities (23 shown, 2 thin omitted)
+- 498 nodes · 992 edges · 24 communities (22 shown, 2 thin omitted)
 - Extraction: 84% EXTRACTED · 16% INFERRED · 0% AMBIGUOUS · INFERRED: 163 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ea24770d`
+- Built from commit: `f53f9179`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -34,7 +34,6 @@
 - Usage
 - CheckDNS
 - Compact TUI Redesign
-- stubDNSResolver
 - File Structure
 - AGENTS.md
 - Compact TUI Redesign Implementation Plan
@@ -66,7 +65,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (25 total, 2 thin omitted)
+## Communities (24 total, 2 thin omitted)
 
 ### Community 0 - "AppModel"
 Cohesion: 0.12
@@ -81,20 +80,20 @@ Cohesion: 0.17
 Nodes (21): runInteractiveSubnet(), validatePrefixes(), allocationBar(), Writer, Render(), ipToUint32(), ParsePrefixes(), Plan() (+13 more)
 
 ### Community 3 - "CheckHTTP"
-Cohesion: 0.20
-Nodes (15): HTTPOptions, HTTPResult, roundTripFunc, Client, CheckHTTP(), Context, Duration, T (+7 more)
+Cohesion: 0.13
+Nodes (23): HTTPOptions, HTTPResult, roundTripFunc, Client, Command, Writer, httpOutput(), httpResultError() (+15 more)
 
 ### Community 4 - "root.go"
 Cohesion: 0.09
-Nodes (26): dnsOutput(), dnsResultError(), Command, Writer, newDNSCommand(), renderDNS(), supportedDNSType(), dnsResultJSON (+18 more)
+Nodes (24): dnsOutput(), dnsResultError(), Command, Writer, newDNSCommand(), renderDNS(), supportedDNSType(), dnsResultJSON (+16 more)
 
 ### Community 5 - "ProgressEvent"
 Cohesion: 0.19
 Nodes (11): Cmd, Context, Model, Msg, View, NewProgressModel(), RunProgress(), waitProgressEvent() (+3 more)
 
 ### Community 6 - "NewAppModel"
-Cohesion: 0.31
-Nodes (19): NewAppModel(), Context, T, testActions(), TestAppFormCtrlCQuits(), TestAppFormEscapeReturnsToMenuWithoutQuitting(), TestAppFormQEditsInputInsteadOfQuitting(), TestAppFormValidationKeepsFocusAndShowsGuidance() (+11 more)
+Cohesion: 0.18
+Nodes (23): Context, NewAppModel(), Context, T, testActions(), TestAppFormCtrlCQuits(), TestAppFormEscapeReturnsToMenuWithoutQuitting(), TestAppFormQEditsInputInsteadOfQuitting() (+15 more)
 
 ### Community 11 - "executeForTest"
 Cohesion: 0.07
@@ -136,35 +135,31 @@ Nodes (17): DNSOptions, DNSResolver, DNSResult, stubDNSResolver, CheckDNS(), dns
 Cohesion: 0.15
 Nodes (12): Acceptance Criteria, Architecture, Compact TUI Redesign, Error Handling, Goal, In Scope, Interaction Design, Out of Scope (+4 more)
 
-### Community 21 - "stubDNSResolver"
-Cohesion: 0.19
-Nodes (10): fieldValidator(), T, TestInteractiveActionFieldsValidateBeforeRunning(), TestInteractiveActionsExposeNewDiagnosticsWithDescriptions(), TestInteractiveSubnetBuildsStructuredAllocationResult(), interactiveActions(), Context, Action (+2 more)
-
 ### Community 22 - "File Structure"
 Cohesion: 0.20
 Nodes (9): File Structure, Global Constraints, Network Toolbox Implementation Plan, Task 1: Subnet Allocator and Renderer, Task 2: HTTP/S Checker, Task 3: Ping Summary and ICMP Checker, Task 4: Bubble Tea Menu, Prompts, and Progress Models, Task 5: Cobra Command Wiring (+1 more)
 
 ### Community 23 - "AGENTS.md"
-Cohesion: 0.33
-Nodes (4): Commands, Development Rules, Package Boundaries, Project Purpose
+Cohesion: 0.29
+Nodes (5): Commands, Development Rules, Package Boundaries, Project Purpose, Terminal UI Guidelines
 
 ### Community 24 - "Compact TUI Redesign Implementation Plan"
 Cohesion: 0.33
 Nodes (5): Compact TUI Redesign Implementation Plan, File Structure, Global Constraints, Task 1: TUI App State and Navigation, Task 2: Command Integration and Smoke Tests
 
 ## Knowledge Gaps
-- **54 isolated node(s):** `github.com/mathwro/nwcli`, `actionStartedMsg`, `Project Purpose`, `Commands`, `Package Boundaries` (+49 more)
+- **55 isolated node(s):** `github.com/mathwro/nwcli`, `actionStartedMsg`, `Project Purpose`, `Commands`, `Package Boundaries` (+50 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **2 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Result` connect `newBatchTLSCommand` to `AppModel`, `ping.go`, `Plan`, `root.go`, `newTLSCommand`, `newTCPCommand`, `stubDNSResolver`?**
-  _High betweenness centrality (0.188) - this node is a cross-community bridge._
-- **Why does `newCommandError()` connect `newCommandError` to `ping.go`, `root.go`, `executeForTest`, `newTLSCommand`, `newTCPCommand`?**
-  _High betweenness centrality (0.168) - this node is a cross-community bridge._
-- **Why does `NewRootCommand()` connect `executeForTest` to `ping.go`, `root.go`, `newCommandError`, `newTLSCommand`, `newTCPCommand`?**
+- **Why does `Result` connect `newBatchTLSCommand` to `AppModel`, `ping.go`, `Plan`, `CheckHTTP`, `root.go`, `NewAppModel`, `newTLSCommand`, `newTCPCommand`?**
+  _High betweenness centrality (0.187) - this node is a cross-community bridge._
+- **Why does `newCommandError()` connect `newCommandError` to `ping.go`, `CheckHTTP`, `root.go`, `executeForTest`, `newTLSCommand`, `newTCPCommand`?**
+  _High betweenness centrality (0.167) - this node is a cross-community bridge._
+- **Why does `NewRootCommand()` connect `executeForTest` to `ping.go`, `CheckHTTP`, `root.go`, `newCommandError`, `newTLSCommand`, `newTCPCommand`?**
   _High betweenness centrality (0.133) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `executeForTest()` (e.g. with `TestBatchDNSCommandWritesJSONResults()` and `TestBatchTCPCommandPreservesTargetOrder()`) actually correct?**
   _`executeForTest()` has 18 INFERRED edges - model-reasoned connections that need verification._
@@ -173,4 +168,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **Are the 15 inferred relationships involving `NewAppModel()` (e.g. with `TestAppFormCtrlCQuits()` and `TestAppFormEscapeReturnsToMenuWithoutQuitting()`) actually correct?**
   _`NewAppModel()` has 15 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `github.com/mathwro/nwcli`, `actionStartedMsg`, `Project Purpose` to the rest of the system?**
-  _54 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _55 weakly-connected nodes found - possible documentation gaps or missing edges._

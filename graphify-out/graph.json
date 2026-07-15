@@ -400,7 +400,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cmd_http",
-      "community": 4,
+      "community": 3,
       "norm_label": "http.go"
     },
     {
@@ -410,7 +410,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "cmd_http_newhttpcommand",
-      "community": 4,
+      "community": 3,
       "norm_label": "newhttpcommand()"
     },
     {
@@ -420,7 +420,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "cmd_http_go_command",
-      "community": 4,
+      "community": 3,
       "norm_label": "command"
     },
     {
@@ -430,7 +430,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "cmd_http_renderhttp",
-      "community": 4,
+      "community": 3,
       "norm_label": "renderhttp()"
     },
     {
@@ -440,7 +440,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "cmd_http_go_writer",
-      "community": 4,
+      "community": 3,
       "norm_label": "writer"
     },
     {
@@ -450,7 +450,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "cmd_http_httpresulterror",
-      "community": 4,
+      "community": 3,
       "norm_label": "httpresulterror()"
     },
     {
@@ -460,7 +460,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "cmd_httpresultjson",
-      "community": 4,
+      "community": 3,
       "norm_label": "httpresultjson"
     },
     {
@@ -470,7 +470,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "cmd_http_httpoutput",
-      "community": 4,
+      "community": 3,
       "norm_label": "httpoutput()"
     },
     {
@@ -480,7 +480,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cmd_interactive_actions_test",
-      "community": 21,
+      "community": 4,
       "norm_label": "interactive_actions_test.go"
     },
     {
@@ -490,7 +490,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "cmd_interactive_actions_test_testinteractiveactionsexposenewdiagnosticswithdescriptions",
-      "community": 21,
+      "community": 4,
       "norm_label": "testinteractiveactionsexposenewdiagnosticswithdescriptions()"
     },
     {
@@ -500,7 +500,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "cmd_interactive_actions_test_go_t",
-      "community": 21,
+      "community": 4,
       "norm_label": "t"
     },
     {
@@ -510,7 +510,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "cmd_interactive_actions_test_testinteractiveactionfieldsvalidatebeforerunning",
-      "community": 21,
+      "community": 4,
       "norm_label": "testinteractiveactionfieldsvalidatebeforerunning()"
     },
     {
@@ -520,7 +520,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "cmd_interactive_actions_test_testinteractivesubnetbuildsstructuredallocationresult",
-      "community": 21,
+      "community": 4,
       "norm_label": "testinteractivesubnetbuildsstructuredallocationresult()"
     },
     {
@@ -530,7 +530,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "cmd_interactive_actions_test_fieldvalidator",
-      "community": 21,
+      "community": 4,
       "norm_label": "fieldvalidator()"
     },
     {
@@ -930,7 +930,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "cmd_root_interactiveactions",
-      "community": 21,
+      "community": 4,
       "norm_label": "interactiveactions()"
     },
     {
@@ -970,7 +970,7 @@
       "source_location": "L254",
       "_origin": "ast",
       "id": "cmd_root_runinteractivehttp",
-      "community": 4,
+      "community": 3,
       "norm_label": "runinteractivehttp()"
     },
     {
@@ -3182,7 +3182,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "internal_tui_action",
-      "community": 21,
+      "community": 6,
       "norm_label": "action.go"
     },
     {
@@ -3192,7 +3192,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "tui_action",
-      "community": 21,
+      "community": 6,
       "norm_label": "action"
     },
     {
@@ -3202,7 +3202,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "internal_tui_action_go_context",
-      "community": 21,
+      "community": 6,
       "norm_label": "context"
     },
     {
@@ -3212,7 +3212,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "tui_field",
-      "community": 21,
+      "community": 6,
       "norm_label": "field"
     },
     {
@@ -3602,7 +3602,7 @@
       "source_location": "L489",
       "_origin": "ast",
       "id": "tui_actionitem",
-      "community": 21,
+      "community": 6,
       "norm_label": "actionitem"
     },
     {
@@ -3612,7 +3612,7 @@
       "source_location": "L494",
       "_origin": "ast",
       "id": "tui_actionitem_title",
-      "community": 21,
+      "community": 6,
       "norm_label": ".title()"
     },
     {
@@ -3622,7 +3622,7 @@
       "source_location": "L495",
       "_origin": "ast",
       "id": "tui_actionitem_description",
-      "community": 21,
+      "community": 6,
       "norm_label": ".description()"
     },
     {
@@ -3632,7 +3632,7 @@
       "source_location": "L496",
       "_origin": "ast",
       "id": "tui_actionitem_filtervalue",
-      "community": 21,
+      "community": 6,
       "norm_label": ".filtervalue()"
     },
     {
@@ -4326,10 +4326,20 @@
       "norm_label": "package boundaries"
     },
     {
-      "label": "Development Rules",
+      "label": "Terminal UI Guidelines",
       "file_type": "document",
       "source_file": "AGENTS.md",
       "source_location": "L26",
+      "_origin": "ast",
+      "id": "agents_terminal_ui_guidelines",
+      "community": 23,
+      "norm_label": "terminal ui guidelines"
+    },
+    {
+      "label": "Development Rules",
+      "file_type": "document",
+      "source_file": "AGENTS.md",
+      "source_location": "L38",
       "_origin": "ast",
       "id": "agents_development_rules",
       "community": 23,
@@ -14900,7 +14910,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "AGENTS.md",
-      "source_location": "L26",
+      "source_location": "L38",
       "weight": 1.0,
       "source": "agents_agents_md",
       "target": "agents_development_rules",
@@ -14924,6 +14934,16 @@
       "weight": 1.0,
       "source": "agents_agents_md",
       "target": "agents_project_purpose",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "AGENTS.md",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "agents_agents_md",
+      "target": "agents_terminal_ui_guidelines",
       "confidence_score": 1.0
     },
     {
@@ -15518,5 +15538,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "ea24770dcac07fbde5a82a547a94eba08edda293"
+  "built_at_commit": "f53f91799aeb2b48e936a0d7bd190a07ee7a9edc"
 }
