@@ -20,7 +20,10 @@
   "18": "Usage",
   "19": "CheckDNS",
   "20": "Compact TUI Redesign",
+  "21": "RunBatch",
   "22": "File Structure",
   "23": "AGENTS.md",
-  "24": "Compact TUI Redesign Implementation Plan"
+  "24": "Compact TUI Redesign Implementation Plan",
+  "25": "InstallLatest",
+  "26": "update_test.go"
 }

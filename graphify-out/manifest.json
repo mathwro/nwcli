@@ -20,13 +20,13 @@
     "semantic_hash": "da54c0ffaf8cc7cf650d376793de7c11"
   },
   "cmd/ping.go": {
-    "mtime": 1784153372.2563996,
+    "mtime": 1784184821.7196338,
     "ast_hash": "2e5c40689efce9c1513f95e8bbd34c7a",
     "semantic_hash": ""
   },
   "cmd/root.go": {
-    "mtime": 1784156135.1060984,
-    "ast_hash": "b7fc31c207f92d59b4355251393e3e30",
+    "mtime": 1784185267.4549446,
+    "ast_hash": "01e70b6f430efafd7e65f1df19934442",
     "semantic_hash": ""
   },
   "cmd/subnet.go": {
@@ -50,12 +50,12 @@
     "semantic_hash": "474e9441abd22d3f68f5254a393f0dd0"
   },
   "internal/checks/ping.go": {
-    "mtime": 1784153372.2871652,
+    "mtime": 1784184822.1677892,
     "ast_hash": "77d80fcbc1ed643a506562a9fcfcb27e",
     "semantic_hash": ""
   },
   "internal/checks/ping_test.go": {
-    "mtime": 1784152844.0634193,
+    "mtime": 1784184822.1802633,
     "ast_hash": "885732216147fb26e7862372b521ac88",
     "semantic_hash": ""
   },
@@ -75,12 +75,12 @@
     "semantic_hash": "77238a1ea6dc888b000cd9386844b3ba"
   },
   "internal/tui/action.go": {
-    "mtime": 1784156135.0834181,
+    "mtime": 1784184822.1949184,
     "ast_hash": "077030dcd97f0b781f86202bbde60247",
     "semantic_hash": ""
   },
   "internal/tui/app.go": {
-    "mtime": 1784184311.744138,
+    "mtime": 1784184822.2041628,
     "ast_hash": "d52eb13c1409e0a72e6ffa3920630071",
     "semantic_hash": ""
   },
@@ -90,7 +90,7 @@
     "semantic_hash": "a3238e5177c59545d610752baf79d162"
   },
   "internal/tui/progress.go": {
-    "mtime": 1784153253.948608,
+    "mtime": 1784184822.2173872,
     "ast_hash": "2bc6a4c8821a14954406cfcc5d9d834b",
     "semantic_hash": ""
   },
@@ -105,7 +105,7 @@
     "semantic_hash": ""
   },
   "internal/tui/tui_test.go": {
-    "mtime": 1784184236.4435835,
+    "mtime": 1784184822.226179,
     "ast_hash": "71d3b107f1d31eeae6a27c1b8efa588e",
     "semantic_hash": ""
   },
@@ -140,7 +140,7 @@
     "semantic_hash": ""
   },
   "cmd/interactive_actions_test.go": {
-    "mtime": 1784156146.8142867,
+    "mtime": 1784184821.7064545,
     "ast_hash": "8cc6475c1d698de8eb47ef6502f90f20",
     "semantic_hash": ""
   },
@@ -230,13 +230,13 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1784184484.154369,
-    "ast_hash": "e05dced00610e72b0ed69d739032430e",
+    "mtime": 1784185440.7135096,
+    "ast_hash": "c7dd52391a1e170a6ba08973a333c4d4",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1784184484.148364,
-    "ast_hash": "24bf0b47f9b6d484106be7a5d807644c",
+    "mtime": 1784185440.7047493,
+    "ast_hash": "6613533d0f80043e26d0996e74a7587b",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-07-14-compact-tui-redesign.md": {
@@ -265,8 +265,28 @@
     "semantic_hash": ""
   },
   "cmd/ping_test.go": {
-    "mtime": 1784153311.626621,
+    "mtime": 1784184821.7288318,
     "ast_hash": "1ed23573bd9505e4a7bad480279d3599",
+    "semantic_hash": ""
+  },
+  "cmd/update.go": {
+    "mtime": 1784185440.6928043,
+    "ast_hash": "9343b816bb20fa30c5ebf6270427b78d",
+    "semantic_hash": ""
+  },
+  "cmd/update_test.go": {
+    "mtime": 1784185440.6985514,
+    "ast_hash": "7aa44a140069c3c62082711d0bba5df4",
+    "semantic_hash": ""
+  },
+  "internal/selfupdate/update.go": {
+    "mtime": 1784185211.3967493,
+    "ast_hash": "4004dcfa465b3ea99d26038065da728b",
+    "semantic_hash": ""
+  },
+  "internal/selfupdate/update_test.go": {
+    "mtime": 1784185223.5736923,
+    "ast_hash": "ad10fec8793a41397379b01fad9c3591",
     "semantic_hash": ""
   }
 }
