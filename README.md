@@ -16,16 +16,16 @@
 
 ## Install
 
-Install the main command:
+Install directly from the Git repository with the Go toolchain; no repository clone or checkout is required:
 
 ```bash
-go install .
+go install github.com/mathwro/nwcli@latest
 ```
 
-Install the shorter alias:
+Install the shorter `nw` alias the same way:
 
 ```bash
-go install ./cmd/nw
+go install github.com/mathwro/nwcli/cmd/nw@latest
 ```
 
 After install, run either:
