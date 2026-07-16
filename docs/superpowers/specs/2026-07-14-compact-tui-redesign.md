@@ -192,5 +192,4 @@ Manual smoke test after implementation:
 - Action results render inside the TUI panel, not as plain newline output between menu sessions.
 - Existing command smoke tests still work:
   - `go run . subnet carve --cidr 10.0.0.0/24 --sizes 27,27,28,28`
-  - `go run ./cmd/nw subnet carve --cidr 10.0.0.0/24 --sizes 27,27,28,28`
   - `go run . --help`

@@ -320,7 +320,6 @@ Run:
 
 ```bash
 go run . subnet carve --cidr 10.0.0.0/24 --sizes 27,27,28,28
-go run ./cmd/nw subnet carve --cidr 10.0.0.0/24 --sizes 27,27,28,28
 go run . --help
 ```
 

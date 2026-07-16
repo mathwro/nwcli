@@ -9,13 +9,11 @@
 - Build: `go build ./...`
 - Test: `go test ./...`
 - Install `nwcli`: `go install .`
-- Install `nw` alias: `go install ./cmd/nw`
 - Update installed `nwcli`: `nwcli update`
 - Run subnet carving: `go run . subnet carve --cidr 10.0.0.0/24 --sizes 27,27,28,28`
 - Run HTTP/S check: `go run . http example.com --port 443 --tls --path / --timeout 2s`
 - Run ping check: `go run . ping 127.0.0.1 --count 1 --timeout 1s`
 - Show help: `go run . --help`
-- Run alias subnet carving: `go run ./cmd/nw subnet carve --cidr 10.0.0.0/24 --sizes 27,27,28,28`
 
 ## Package Boundaries
 

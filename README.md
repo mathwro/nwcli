@@ -11,7 +11,6 @@
 - Bounded concurrent DNS, TCP, and TLS batch checks.
 - Versioned JSON output and stable automation exit codes.
 - Searchable Bubble Tea TUI with structured result summaries and scrollable details.
-- Optional `nw` command alias in addition to `nwcli`.
 - Direct self-update through the installed Go toolchain.
 
 ## Install
@@ -22,17 +21,10 @@ Install directly from the Git repository with the Go toolchain; no repository cl
 go install github.com/mathwro/nwcli@latest
 ```
 
-Install the shorter `nw` alias the same way:
-
-```bash
-go install github.com/mathwro/nwcli/cmd/nw@latest
-```
-
-After install, run either:
+After installation:
 
 ```bash
 nwcli --help
-nw --help
 ```
 
 ## Usage
@@ -79,12 +71,6 @@ Parent: 10.0.0.0/24  addresses: 256
 4  10.0.0.80/28   10.0.0.80    10.0.0.95    16     ..........##....................
 
 Unused: 10.0.0.96 - 10.0.0.255  addresses: 160
-```
-
-The `nw` alias works the same way:
-
-```bash
-nw subnet carve --cidr 10.0.0.0/24 --sizes 27,27,28,28
 ```
 
 ### CIDR calculator
@@ -191,7 +177,7 @@ Update `nwcli` to the latest version available from its Go module:
 nwcli update
 ```
 
-This direct CLI command runs `go install github.com/mathwro/nwcli@latest`, so the Go toolchain must be installed and available on `PATH`. It does not appear in the interactive TUI and does not update the separately installed `nw` alias.
+This direct CLI command runs `go install github.com/mathwro/nwcli@latest`, so the Go toolchain must be installed and available on `PATH`. It does not appear in the interactive TUI.
 
 ## Development
 
@@ -210,7 +196,6 @@ go test ./...
 Project layout:
 
 - `cmd/`: Cobra command wiring and interactive action wiring.
-- `cmd/nw/`: short `nw` alias entry point.
 - `internal/subnet/`: deterministic subnet allocation and dual-stack CIDR calculations.
 - `internal/checks/`: network checks and bounded result aggregation.
 - `internal/tui/`: Bubble Tea models, compact-panel TUI, and styling.
