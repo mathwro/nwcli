@@ -25,7 +25,7 @@
     "semantic_hash": ""
   },
   "cmd/root.go": {
-    "mtime": 1784185267.4549446,
+    "mtime": 1784185785.9936934,
     "ast_hash": "01e70b6f430efafd7e65f1df19934442",
     "semantic_hash": ""
   },
@@ -230,13 +230,13 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1784185440.7135096,
+    "mtime": 1784185785.9772642,
     "ast_hash": "c7dd52391a1e170a6ba08973a333c4d4",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1784185440.7047493,
-    "ast_hash": "6613533d0f80043e26d0996e74a7587b",
+    "mtime": 1784186189.8069162,
+    "ast_hash": "a4ec5c6e74f3d482ffc9f17b651560fc",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-07-14-compact-tui-redesign.md": {
@@ -270,22 +270,22 @@
     "semantic_hash": ""
   },
   "cmd/update.go": {
-    "mtime": 1784185440.6928043,
+    "mtime": 1784185785.9998288,
     "ast_hash": "9343b816bb20fa30c5ebf6270427b78d",
     "semantic_hash": ""
   },
   "cmd/update_test.go": {
-    "mtime": 1784185440.6985514,
+    "mtime": 1784185786.0066538,
     "ast_hash": "7aa44a140069c3c62082711d0bba5df4",
     "semantic_hash": ""
   },
   "internal/selfupdate/update.go": {
-    "mtime": 1784185211.3967493,
+    "mtime": 1784185786.150373,
     "ast_hash": "4004dcfa465b3ea99d26038065da728b",
     "semantic_hash": ""
   },
   "internal/selfupdate/update_test.go": {
-    "mtime": 1784185223.5736923,
+    "mtime": 1784185786.15845,
     "ast_hash": "ad10fec8793a41397379b01fad9c3591",
     "semantic_hash": ""
   }
