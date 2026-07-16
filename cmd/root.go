@@ -35,7 +35,7 @@ func NewRootCommand(menuRunner func(context.Context) error) *cobra.Command {
 		},
 	}
 	root.PersistentFlags().StringVar(&outputFormat, "output", "text", "output format: text or json")
-	root.AddCommand(newSubnetCommand(), newPingCommand(), newHTTPCommand(), newDNSCommand(), newTCPCommand(), newTLSCommand(), newBatchCommand())
+	root.AddCommand(newSubnetCommand(), newPingCommand(), newHTTPCommand(), newDNSCommand(), newTCPCommand(), newTLSCommand(), newBatchCommand(), newUpdateCommand())
 	return root
 }
 

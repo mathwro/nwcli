@@ -10,6 +10,7 @@
 - Test: `go test ./...`
 - Install `nwcli`: `go install .`
 - Install `nw` alias: `go install ./cmd/nw`
+- Update installed `nwcli`: `nwcli update`
 - Run subnet carving: `go run . subnet carve --cidr 10.0.0.0/24 --sizes 27,27,28,28`
 - Run HTTP/S check: `go run . http example.com --port 443 --tls --path / --timeout 2s`
 - Run ping check: `go run . ping 127.0.0.1 --count 1 --timeout 1s`
@@ -21,6 +22,7 @@
 - `cmd/` contains Cobra command wiring, flags, command output, and interactive action wiring.
 - `internal/subnet/` contains deterministic subnet allocation and dual-stack CIDR calculations.
 - `internal/checks/` contains network checks and bounded result aggregation.
+- `internal/selfupdate/` contains the Go-install self-update operation.
 - `internal/tui/` contains Bubble Tea models, prompts, menus, progress UI, and structured result rendering.
 
 ## Terminal UI Guidelines

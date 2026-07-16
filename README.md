@@ -12,6 +12,7 @@
 - Versioned JSON output and stable automation exit codes.
 - Searchable Bubble Tea TUI with structured result summaries and scrollable details.
 - Optional `nw` command alias in addition to `nwcli`.
+- Direct self-update through the installed Go toolchain.
 
 ## Install
 
@@ -181,6 +182,16 @@ nwcli ping 127.0.0.1 -c
 Press `ctrl+c` to stop the CLI cleanly and print its final summary. In the interactive TUI, switch the Ping test's `Continuous` toggle to `ON`; the finite `Count` field disappears because it no longer applies, while `Host` and per-request `Timeout` remain available. The running view updates Sent, Received, Dropped, and Loss after every attempt. Press `s` or `esc` to stop, open the final result screen, and then press `c` to copy the results.
 
 ICMP may require elevated permissions or OS capability configuration. `nwcli` does not silently fall back to TCP because that would make `ping` mean two different things.
+
+### Update nwcli
+
+Update `nwcli` to the latest version available from its Go module:
+
+```bash
+nwcli update
+```
+
+This direct CLI command runs `go install github.com/mathwro/nwcli@latest`, so the Go toolchain must be installed and available on `PATH`. It does not appear in the interactive TUI and does not update the separately installed `nw` alias.
 
 ## Development
 
