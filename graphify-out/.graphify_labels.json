@@ -1,1 +1,26 @@
-{"0": "AppModel", "1": "ping.go", "2": "Plan", "3": "CheckHTTP", "4": "root.go", "6": "NewAppModel", "7": "TestNWAliasDefinesMain", "8": "prompt.go", "9": "styles.go", "10": "github.com/mathwro/nwcli", "11": "executeForTest", "12": "newCommandError", "13": "runInteractiveTLS", "14": "runInteractiveTCP", "15": "calc.go", "16": "Network Toolbox Design", "17": "Result", "18": "Usage", "19": "CheckDNS", "20": "Compact TUI Redesign", "22": "File Structure", "23": "AGENTS.md", "24": "Compact TUI Redesign Implementation Plan"}
+{
+  "0": "AppModel",
+  "1": "ping.go",
+  "2": "Plan",
+  "3": "CheckHTTP",
+  "4": "root.go",
+  "5": "stubDNSResolver",
+  "6": "NewAppModel",
+  "7": "TestNWAliasDefinesMain",
+  "8": "prompt.go",
+  "9": "styles.go",
+  "10": "github.com/mathwro/nwcli",
+  "11": "executeForTest",
+  "12": "newCommandError",
+  "13": "runInteractiveTLS",
+  "14": "runInteractiveTCP",
+  "15": "calc.go",
+  "16": "Network Toolbox Design",
+  "17": "Result",
+  "18": "Usage",
+  "19": "CheckDNS",
+  "20": "Compact TUI Redesign",
+  "22": "File Structure",
+  "23": "AGENTS.md",
+  "24": "Compact TUI Redesign Implementation Plan"
+}

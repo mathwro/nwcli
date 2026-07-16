@@ -80,8 +80,8 @@
     "semantic_hash": ""
   },
   "internal/tui/app.go": {
-    "mtime": 1784156135.0897067,
-    "ast_hash": "651bc21cc3309bb8d6f62b20b4c6014d",
+    "mtime": 1784184311.744138,
+    "ast_hash": "d52eb13c1409e0a72e6ffa3920630071",
     "semantic_hash": ""
   },
   "internal/tui/menu.go": {
@@ -105,8 +105,8 @@
     "semantic_hash": ""
   },
   "internal/tui/tui_test.go": {
-    "mtime": 1784156146.8142867,
-    "ast_hash": "b996f9c773668832b6a4dbae7db0f3fd",
+    "mtime": 1784184236.4435835,
+    "ast_hash": "71d3b107f1d31eeae6a27c1b8efa588e",
     "semantic_hash": ""
   },
   "main.go": {
@@ -230,13 +230,13 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1784156370.9727683,
-    "ast_hash": "8662d176c12edbe66ac899eb8ba05913",
+    "mtime": 1784184484.154369,
+    "ast_hash": "e05dced00610e72b0ed69d739032430e",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1784156370.9788778,
-    "ast_hash": "c6d1cea00e6dd549522efa081b058fc4",
+    "mtime": 1784184484.148364,
+    "ast_hash": "24bf0b47f9b6d484106be7a5d807644c",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-07-14-compact-tui-redesign.md": {
