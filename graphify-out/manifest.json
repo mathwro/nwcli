@@ -9,16 +9,6 @@
     "ast_hash": "d843f337dfc3e616555a95aad00f324f",
     "semantic_hash": ""
   },
-  "cmd/nw/main.go": {
-    "mtime": 1784065741.837517,
-    "ast_hash": "b71325e67ada0c0055f400be97a68063",
-    "semantic_hash": "b71325e67ada0c0055f400be97a68063"
-  },
-  "cmd/nw/main_test.go": {
-    "mtime": 1784065741.8420224,
-    "ast_hash": "da54c0ffaf8cc7cf650d376793de7c11",
-    "semantic_hash": "da54c0ffaf8cc7cf650d376793de7c11"
-  },
   "cmd/ping.go": {
     "mtime": 1784184821.7196338,
     "ast_hash": "2e5c40689efce9c1513f95e8bbd34c7a",
@@ -230,18 +220,18 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1784185785.9772642,
-    "ast_hash": "c7dd52391a1e170a6ba08973a333c4d4",
+    "mtime": 1784186695.1474693,
+    "ast_hash": "5cff75358921bb6de5181eadb78dfe56",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1784186189.8069162,
-    "ast_hash": "a4ec5c6e74f3d482ffc9f17b651560fc",
+    "mtime": 1784186747.3428738,
+    "ast_hash": "5fd68fa73cb4fc8d35bdcd520a0852e2",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-07-14-compact-tui-redesign.md": {
-    "mtime": 1784065741.865039,
-    "ast_hash": "677dae341b0de9f333a264be7061f1e7",
+    "mtime": 1784186695.1579635,
+    "ast_hash": "1000809195c219e2d730550f127878be",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-07-14-network-toolbox.md": {
@@ -250,8 +240,8 @@
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-07-14-compact-tui-redesign.md": {
-    "mtime": 1784065741.8806522,
-    "ast_hash": "cbca2fc189b782a4a0ae425d4b666231",
+    "mtime": 1784186695.17363,
+    "ast_hash": "faf50daa11bf27d0d6a958a7e9a9c74d",
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-07-14-network-toolbox-design.md": {
