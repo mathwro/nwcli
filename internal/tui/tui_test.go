@@ -388,6 +388,69 @@ func TestAppTextFieldShowsPlaceholderAndAcceptsDirectInput(t *testing.T) {
 	}
 }
 
+func TestAppSubmitUsesUntouchedPlaceholders(t *testing.T) {
+	var runValues map[string]string
+	actions := []Action{{
+		Title: "Ping test",
+		Fields: []Field{
+			{Name: "host", Label: "Host", Placeholder: "127.0.0.1", Validate: func(value string) error {
+				if value != "127.0.0.1" {
+					return fmt.Errorf("host = %q", value)
+				}
+				return nil
+			}},
+			{Name: "continuous", Label: "Continuous", Default: "false", Toggle: true},
+			{Name: "count", Label: "Count", Placeholder: "4"},
+			{Name: "timeout", Label: "Timeout", Placeholder: "1s"},
+		},
+		Run: func(_ context.Context, values map[string]string) (Result, error) {
+			runValues = values
+			return Result{Text: "done"}, nil
+		},
+	}}
+	model := NewAppModel(actions)
+	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, cmd := updated.(AppModel).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("cmd = nil, want immediate action command")
+	}
+	cmd()
+	want := map[string]string{
+		"host": "127.0.0.1", "continuous": "false", "count": "4", "timeout": "1s",
+	}
+	for name, value := range want {
+		if runValues[name] != value {
+			t.Fatalf("run values[%q] = %q, want %q; all values: %#v", name, runValues[name], value, runValues)
+		}
+	}
+}
+
+func TestAppSubmitPreservesEditedBlankInsteadOfRestoringPlaceholder(t *testing.T) {
+	var runValues map[string]string
+	actions := []Action{{
+		Title: "DNS lookup",
+		Fields: []Field{{
+			Name: "server", Label: "Resolver (optional)", Placeholder: "1.1.1.1",
+		}},
+		Run: func(_ context.Context, values map[string]string) (Result, error) {
+			runValues = values
+			return Result{Text: "done"}, nil
+		},
+	}}
+	model := NewAppModel(actions)
+	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, _ = updated.(AppModel).Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
+	updated, _ = updated.(AppModel).Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	_, cmd := updated.(AppModel).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("cmd = nil, want action command")
+	}
+	cmd()
+	if runValues["server"] != "" {
+		t.Fatalf("server = %q, want explicitly cleared blank", runValues["server"])
+	}
+}
+
 func TestAppMenuUsesActionDescriptions(t *testing.T) {
 	actions := testActions(nil)
 	actions[0].Description = "Allocate child networks and see remaining space"

@@ -56,7 +56,7 @@ Keyboard shortcuts:
 - `q`: quit outside a form; inside a text field it is normal input.
 - `ctrl+c`: quit from any screen.
 
-Forms show examples as placeholders rather than pre-populated text, so typing starts immediately without deleting an example first. Result pages keep status and the primary target visible above a scrollable detail view. Subnet carving adds a proportional address-space rail, color-keyed allocations, endpoint ranges, and the remaining available range.
+Forms show examples as placeholders rather than pre-populated text, so typing starts immediately without deleting an example first. Press `enter` without editing a form to run it with the displayed examples. Once a field has been edited, its current content—including an explicitly cleared blank—takes precedence over the placeholder. Result pages keep status and the primary target visible above a scrollable detail view. Subnet carving adds a proportional address-space rail, color-keyed allocations, endpoint ranges, and the remaining available range.
 
 ### Subnet carving
 

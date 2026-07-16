@@ -28,6 +28,7 @@ type AppModel struct {
 	activeField    int
 	input          textinput.Model
 	values         map[string]string
+	fieldEdited    map[string]bool
 	width          int
 	height         int
 	progress       ProgressModel
@@ -230,6 +231,7 @@ func (m *AppModel) openForm() {
 	m.formErr = nil
 	m.activeField = -1
 	m.values = make(map[string]string, len(action.Fields))
+	m.fieldEdited = make(map[string]bool, len(action.Fields))
 	for _, field := range action.Fields {
 		m.values[field.Name] = field.Default
 	}
@@ -288,8 +290,13 @@ func (m AppModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.formErr = nil
+	before := m.input.Value()
 	var cmd tea.Cmd
 	m.input, cmd = m.input.Update(msg)
+	if m.input.Value() != before {
+		field := m.actions[m.selected].Fields[m.activeField]
+		m.fieldEdited[field.Name] = true
+	}
 	return m, cmd
 }
 
@@ -347,9 +354,23 @@ func (m *AppModel) configureInput(field Field) {
 	m.input.Focus()
 }
 
+func (m AppModel) submittedFieldValue(field Field) string {
+	value := m.values[field.Name]
+	if field.Toggle || value != "" || m.fieldEdited[field.Name] {
+		return value
+	}
+	return field.Placeholder
+}
+
 func (m AppModel) submitForm() (tea.Model, tea.Cmd) {
 	m.storeActiveField()
 	action := m.actions[m.selected]
+	values := make(map[string]string, len(m.values))
+	for _, field := range action.Fields {
+		if m.fieldVisible(field) {
+			values[field.Name] = m.submittedFieldValue(field)
+		}
+	}
 	for i, field := range action.Fields {
 		if !m.fieldVisible(field) {
 			continue
@@ -357,17 +378,11 @@ func (m AppModel) submitForm() (tea.Model, tea.Cmd) {
 		if field.Validate == nil {
 			continue
 		}
-		if err := field.Validate(m.values[field.Name]); err != nil {
+		if err := field.Validate(values[field.Name]); err != nil {
 			m.formErr = fmt.Errorf("%s: %w", field.Label, err)
 			m.activeField = i
 			m.configureInput(field)
 			return m, nil
-		}
-	}
-	values := make(map[string]string, len(m.values))
-	for _, field := range action.Fields {
-		if m.fieldVisible(field) {
-			values[field.Name] = m.values[field.Name]
 		}
 	}
 	m.formErr = nil
