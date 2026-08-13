@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Check formatting
+        run: test -z "$(gofmt -l cmd/root.go cmd/command_test.go internal/version)"
+      - name: Run static analysis
+        run: go vet ./...
+      - name: Run tests
+        run: go test ./... -count=1
+      - name: Build host binary
+        run: go build -mod=readonly -trimpath -o ./nwcli .
+      - name: Smoke version and help
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(./nwcli --version | wc -l)" -eq 1
+          ./nwcli --version | sed -n '/^nwcli /q 0; q 1'
+          ./nwcli --help >/dev/null

@@ -55,6 +55,42 @@ func TestRootNoArgsRunsInjectedMenu(t *testing.T) {
 	}
 }
 
+func TestRootVersionDoesNotRunMenu(t *testing.T) {
+	root := NewRootCommand(func(context.Context) error {
+		t.Fatal("version should not run the interactive menu")
+		return nil
+	})
+	var stdout bytes.Buffer
+	root.SetOut(&stdout)
+	root.SetErr(&bytes.Buffer{})
+	root.SetArgs([]string{"--version"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if got := stdout.String(); !strings.HasPrefix(got, "nwcli ") || strings.Count(got, "\n") != 1 {
+		t.Fatalf("expected one concise version line, got %q", got)
+	}
+}
+
+func TestRootHelpDoesNotRunMenu(t *testing.T) {
+	root := NewRootCommand(func(context.Context) error {
+		t.Fatal("help should not run the interactive menu")
+		return nil
+	})
+	var stdout bytes.Buffer
+	root.SetOut(&stdout)
+	root.SetErr(&bytes.Buffer{})
+	root.SetArgs([]string{"--help"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if got := stdout.String(); !strings.Contains(got, "nwcli is a network toolbox for subnet planning, DNS diagnostics, and connectivity checks.") {
+		t.Fatalf("help missing command description:\n%s", got)
+	}
+}
+
 func TestHTTPCommandRejectsMissingHost(t *testing.T) {
 	_, _, err := executeForTest("http")
 	if err == nil {

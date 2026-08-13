@@ -15,7 +15,21 @@
 
 ## Install
 
-Install directly from the Git repository with the Go toolchain; no repository clone or checkout is required:
+After the first stable release is available, install the prebuilt executable with Scoop on Windows:
+
+```powershell
+scoop bucket add mathwro https://github.com/mathwro/homebrew-tools
+scoop install mathwro/nwcli
+```
+
+Install with Homebrew on macOS or Linux:
+
+```bash
+brew tap mathwro/tools
+brew install mathwro/tools/nwcli
+```
+
+The Go toolchain remains an alternative installation method:
 
 ```bash
 go install github.com/mathwro/nwcli@latest
@@ -24,6 +38,7 @@ go install github.com/mathwro/nwcli@latest
 After installation:
 
 ```bash
+nwcli --version
 nwcli --help
 ```
 
@@ -178,6 +193,14 @@ nwcli update
 ```
 
 This direct CLI command runs `go install github.com/mathwro/nwcli@latest`, so the Go toolchain must be installed and available on `PATH`. It does not appear in the interactive TUI.
+
+## Release process
+
+Releases are built by the centralized typed workflow in [`mathwro/homebrew-tools`](https://github.com/mathwro/homebrew-tools). This repository keeps only the declarative `release.json` and thin reusable-workflow callers; the central Go adapter owns tests, six native builds, version and help smoke checks, deterministic archives, checksums, publication, and Scoop/Homebrew notification.
+
+Maintainers push an annotated SemVer tag from protected `main`. Prerelease tags such as `v1.0.0-rc.1` run the complete six-platform build and staging matrix as a dry run without publishing. Stable tags such as `v1.0.0` wait for approval in the protected `release` environment before publishing an immutable release containing six archives and `checksums.txt`.
+
+The repository must define `DISTRIBUTION_DISPATCH_TOKEN` as a fine-grained token restricted to `mathwro/homebrew-tools` with permission to create repository dispatch events. After a stable release publishes, the canonical `cli-release` dispatch opens the package-metadata update in `mathwro/homebrew-tools`; generated Scoop and Homebrew files are never maintained here.
 
 ## Development
 

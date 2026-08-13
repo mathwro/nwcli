@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "package": "nwcli",
+  "binary": "nwcli",
+  "adapter": "go",
+  "macos_sign": "none",
+  "go": {
+    "ldflags": {
+      "version": "github.com/mathwro/nwcli/internal/version.semanticVersion",
+      "commit": "github.com/mathwro/nwcli/internal/version.commit",
+      "date": "github.com/mathwro/nwcli/internal/version.buildDate"
+    }
+  }
+}
