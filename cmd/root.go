@@ -15,6 +15,7 @@ import (
 	"github.com/mathwro/nwcli/internal/checks"
 	"github.com/mathwro/nwcli/internal/subnet"
 	"github.com/mathwro/nwcli/internal/tui"
+	"github.com/mathwro/nwcli/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -24,9 +25,10 @@ func NewRootCommand(menuRunner func(context.Context) error) *cobra.Command {
 	}
 	var outputFormat string
 	root := &cobra.Command{
-		Use:   "nwcli",
-		Short: "Network toolbox for subnet planning and connectivity checks",
-		Long:  "nwcli is a network toolbox for subnet planning, DNS diagnostics, and connectivity checks.",
+		Use:     "nwcli",
+		Short:   "Network toolbox for subnet planning and connectivity checks",
+		Long:    "nwcli is a network toolbox for subnet planning, DNS diagnostics, and connectivity checks.",
+		Version: version.String(),
 		PersistentPreRunE: func(*cobra.Command, []string) error {
 			return validateOutputFormat(outputFormat)
 		},
@@ -34,6 +36,7 @@ func NewRootCommand(menuRunner func(context.Context) error) *cobra.Command {
 			return menuRunner(cmd.Context())
 		},
 	}
+	root.SetVersionTemplate("{{.Version}}\n")
 	root.PersistentFlags().StringVar(&outputFormat, "output", "text", "output format: text or json")
 	root.AddCommand(newSubnetCommand(), newPingCommand(), newHTTPCommand(), newDNSCommand(), newTCPCommand(), newTLSCommand(), newBatchCommand(), newUpdateCommand())
 	return root

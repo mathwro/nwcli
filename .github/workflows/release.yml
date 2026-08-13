@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing annotated tag to build
+        required: true
+        type: string
+      dry_run:
+        description: Build and validate without publishing
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    uses: mathwro/homebrew-tools/.github/workflows/release-tool.yml@main
+    with:
+      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      dry_run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || (github.event_name == 'push' && contains(github.ref_name, '-')) }}
+    secrets:
+      distribution_token: ${{ secrets.DISTRIBUTION_DISPATCH_TOKEN }}
