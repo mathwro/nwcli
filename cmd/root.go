@@ -127,9 +127,9 @@ func interactiveActions() []tui.Action {
 		},
 		{
 			Title:       "TCP connect",
-			Description: "Measure transport-level reachability to a host and port",
+			Description: "Measure transport reachability to a port, list, or range",
 			Fields: []tui.Field{
-				{Name: "address", Label: "Address", Placeholder: "example.com:443", Validate: validateHostPort},
+				{Name: "address", Label: "Address / ports", Placeholder: "example.com:80,443", Validate: validateTCPTarget},
 				{Name: "timeout", Label: "Timeout", Placeholder: "2s", Validate: validateDuration},
 			},
 			RunProgress: runInteractiveTCP,
@@ -490,26 +490,70 @@ func runInteractiveTCP(ctx context.Context, values map[string]string, report fun
 	if err != nil {
 		return tui.Result{}, err
 	}
-	reportSingle(report, "Opening TCP connection", false)
-	checkResult := tcpCheck(ctx, nil, checks.TCPOptions{Address: values["address"], Timeout: timeout})
-	reportSingle(report, "TCP check complete", true)
+	targets, err := checks.ExpandTCPTarget(values["address"])
+	if err != nil {
+		return tui.Result{}, err
+	}
+	if len(targets) == 1 {
+		reportSingle(report, "Opening TCP connection", false)
+		checkResult := tcpCheck(ctx, nil, checks.TCPOptions{Address: targets[0], Timeout: timeout})
+		reportSingle(report, "TCP check complete", true)
+		var out bytes.Buffer
+		renderTCP(&out, checkResult)
+		summary := "Connection failed"
+		if checkResult.Reachable {
+			summary = "Connection established"
+		}
+		return tui.Result{
+			Headline: checkResult.Address,
+			Summary:  summary,
+			Text:     out.String(),
+			Fields: []tui.ResultField{
+				boolResultField("Reachable", checkResult.Reachable),
+				{Label: "Latency", Value: checkResult.Latency.Round(time.Millisecond).String()},
+				{Label: "Remote", Value: checkResult.RemoteAddress},
+				{Label: "Local", Value: checkResult.LocalAddress},
+			},
+		}, tcpResultError(checkResult)
+	}
+	reportSingle(report, fmt.Sprintf("Scanning %d TCP ports", len(targets)), false)
+	batch := checks.RunBatch(ctx, targets, 8, func(runCtx context.Context, target string) checks.TCPResult {
+		return tcpCheck(runCtx, nil, checks.TCPOptions{Address: target, Timeout: timeout})
+	})
+	reportSingle(report, "TCP scan complete", true)
 	var out bytes.Buffer
-	renderTCP(&out, checkResult)
-	summary := "Connection failed"
-	if checkResult.Reachable {
-		summary = "Connection established"
+	lines := make([]string, len(batch))
+	openCount := 0
+	for i, item := range batch {
+		if item.Result.Reachable {
+			openCount++
+			fmt.Fprintf(&out, "%s reachable=true latency=%s\n", item.Item, item.Result.Latency.Round(time.Millisecond))
+			lines[i] = fmt.Sprintf("OPEN    %-22s %s", item.Item, item.Result.Latency.Round(time.Millisecond))
+		} else {
+			fmt.Fprintf(&out, "%s reachable=false latency=%s error=%v\n", item.Item, item.Result.Latency.Round(time.Millisecond), item.Result.Err)
+			lines[i] = fmt.Sprintf("CLOSED  %-22s %v", item.Item, item.Result.Err)
+		}
+	}
+	var runErr error
+	tone := tui.ToneSuccess
+	if openCount == 0 {
+		tone = tui.ToneDanger
+		runErr = newCommandError(exitUnreachable, fmt.Errorf("all %d TCP ports unreachable", len(batch)))
+	} else if openCount < len(batch) {
+		tone = tui.ToneWarning
+		runErr = newCommandError(exitUnhealthy, fmt.Errorf("%d of %d TCP ports unreachable", len(batch)-openCount, len(batch)))
 	}
 	return tui.Result{
-		Headline: checkResult.Address,
-		Summary:  summary,
+		Headline: values["address"],
+		Summary:  fmt.Sprintf("%d of %d ports reachable", openCount, len(batch)),
 		Text:     out.String(),
 		Fields: []tui.ResultField{
-			boolResultField("Reachable", checkResult.Reachable),
-			{Label: "Latency", Value: checkResult.Latency.Round(time.Millisecond).String()},
-			{Label: "Remote", Value: checkResult.RemoteAddress},
-			{Label: "Local", Value: checkResult.LocalAddress},
+			{Label: "Checked", Value: strconv.Itoa(len(batch))},
+			{Label: "Open", Value: strconv.Itoa(openCount), Tone: tone},
+			{Label: "Closed", Value: strconv.Itoa(len(batch) - openCount)},
 		},
-	}, tcpResultError(checkResult)
+		Sections: []tui.ResultSection{{Title: "Port results", Lines: lines}},
+	}, runErr
 }
 
 func runInteractiveTLS(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (tui.Result, error) {
@@ -637,6 +681,11 @@ func validateHostPort(value string) error {
 		return fmt.Errorf("expected HOST:PORT")
 	}
 	return nil
+}
+
+func validateTCPTarget(value string) error {
+	_, err := checks.ExpandTCPTarget(value)
+	return err
 }
 
 func validatePort(value string) error {
