@@ -85,3 +85,21 @@ func TestInstallLatestExplainsMissingGoToolchain(t *testing.T) {
 		t.Fatalf("err = %v, want missing Go toolchain explanation", err)
 	}
 }
+
+func TestInstallLatestRejectsPrebuiltReleaseBinaryOutsidePackageManagerPaths(t *testing.T) {
+	oldIsPrebuilt := isPrebuiltRelease
+	t.Cleanup(func() { isPrebuiltRelease = oldIsPrebuilt })
+	isPrebuiltRelease = func() bool { return true }
+
+	err := installLatestWithEnv(context.Background(), io.Discard, io.Discard,
+		func() (string, error) { return "/usr/local/bin/nwcli", nil },
+		func(string) (string, error) { return "/usr/bin/go", nil },
+		func(context.Context, string, []string, io.Writer, io.Writer) error {
+			t.Fatal("go install should not run for prebuilt release binary")
+			return nil
+		},
+	)
+	if err == nil || !strings.Contains(err.Error(), "prebuilt release") || !strings.Contains(err.Error(), "https://github.com/mathwro/nwcli/releases/latest") {
+		t.Fatalf("err = %v, want prebuilt release guidance", err)
+	}
+}

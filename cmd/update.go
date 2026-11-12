@@ -32,7 +32,9 @@ func newUpdateCommand() *cobra.Command {
 			runErr := updateInstall(cmd.Context(), installStdout, cmd.ErrOrStderr())
 			if runErr != nil {
 				code := exitUnreachable
-				if strings.Contains(runErr.Error(), "managed by ") || strings.Contains(runErr.Error(), "Go toolchain not found") {
+				if strings.Contains(runErr.Error(), "managed by ") ||
+					strings.Contains(runErr.Error(), "prebuilt release archive") ||
+					strings.Contains(runErr.Error(), "Go toolchain not found") {
 					code = exitUsage
 				}
 				runErr = newCommandError(code, runErr)

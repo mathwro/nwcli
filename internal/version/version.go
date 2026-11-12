@@ -21,6 +21,13 @@ func String() string {
 	return fmt.Sprintf("%s %s (commit %s, built %s)", Binary, version, shortRevision(revision), date)
 }
 
+// IsPrebuiltRelease reports whether the running binary has release version
+// metadata injected via linker flags (prebuilt release archives and package
+// manager installs).
+func IsPrebuiltRelease() bool {
+	return strings.TrimSpace(semanticVersion) != ""
+}
+
 func buildMetadata() (string, string, string) {
 	version := strings.TrimPrefix(strings.TrimSpace(semanticVersion), "v")
 	revision := strings.TrimSpace(commit)

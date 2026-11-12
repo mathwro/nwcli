@@ -35,3 +35,18 @@ func TestDevelopmentMetadataUsesStableFallbacks(t *testing.T) {
 		t.Fatalf("metadata = (%q, %q, %q), want non-empty fallbacks", version, revision, date)
 	}
 }
+
+func TestIsPrebuiltRelease(t *testing.T) {
+	oldVersion := semanticVersion
+	t.Cleanup(func() { semanticVersion = oldVersion })
+
+	semanticVersion = ""
+	if IsPrebuiltRelease() {
+		t.Fatal("IsPrebuiltRelease() = true for empty semanticVersion, want false")
+	}
+
+	semanticVersion = "0.2.0"
+	if !IsPrebuiltRelease() {
+		t.Fatal("IsPrebuiltRelease() = false for injected semanticVersion, want true")
+	}
+}
