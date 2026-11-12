@@ -10,7 +10,10 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
+
+const maxPanelWidth = 96
 
 const (
 	screenMenu    = "menu"
@@ -63,11 +66,11 @@ func NewAppModel(actions []Action) AppModel {
 		items[i] = actionItem{index: i, action: action}
 	}
 	delegate := list.NewDefaultDelegate()
-	delegate.SetSpacing(1)
-	delegate.Styles.NormalTitle = bodyStyle
-	delegate.Styles.NormalDesc = mutedStyle
-	delegate.Styles.SelectedTitle = selectedStyle.PaddingLeft(2)
-	delegate.Styles.SelectedDesc = signalStyle.PaddingLeft(2)
+	delegate.SetSpacing(0)
+	delegate.Styles.NormalTitle = bodyStyle.PaddingLeft(2)
+	delegate.Styles.NormalDesc = mutedStyle.PaddingLeft(2)
+	delegate.Styles.SelectedTitle = selectedStyle.Border(lipgloss.NormalBorder(), false, false, false, true).BorderForeground(lipgloss.Color("45")).PaddingLeft(1)
+	delegate.Styles.SelectedDesc = signalStyle.Border(lipgloss.NormalBorder(), false, false, false, true).BorderForeground(lipgloss.Color("45")).PaddingLeft(1)
 	menu := list.New(items, delegate, 74, 16)
 	menu.SetShowTitle(false)
 	menu.SetShowStatusBar(false)
@@ -113,6 +116,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.resizeMenu()
 		m.resizeResultViewport()
+		if m.screen == screenForm && m.activeField >= 0 && m.activeField < len(m.actions[m.selected].Fields) {
+			m.configureInput(m.actions[m.selected].Fields[m.activeField])
+		}
 		if m.screen == screenResult {
 			m.setResultContent()
 		}
@@ -248,6 +254,7 @@ func (m *AppModel) openForm() {
 		}
 	}
 	m.input = textinput.New()
+	m.input.Prompt = ""
 	for i, field := range action.Fields {
 		if m.fieldVisible(field) {
 			m.activeField = i
@@ -301,7 +308,7 @@ func (m AppModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.formErr = nil
 		m.screen = screenMenu
 		return m, nil
-	case "up":
+	case "up", "shift+tab":
 		m.formErr = nil
 		m.moveField(-1)
 		return m, nil
@@ -396,7 +403,9 @@ func (m *AppModel) configureInput(field Field) {
 		m.input.Blur()
 		return
 	}
-	m.input.SetWidth(max(12, m.width-26))
+	labelColWidth := m.formLabelWidth()
+	m.input.SetWidth(max(12, m.innerWidth()-labelColWidth-6))
+	m.input.Prompt = ""
 	m.input.SetValue(m.values[field.Name])
 	m.input.Placeholder = field.Placeholder
 	m.input.CursorEnd()
@@ -452,7 +461,7 @@ func (m AppModel) executeAction(action Action, values map[string]string) (tea.Mo
 		m.actionCancel = cancel
 		m.actionAbort = abort
 		m.stopping = false
-		m.progress = NewProgressModel(action.Title)
+		m.progress = NewProgressModelWithWidth(action.Title, min(48, max(20, m.innerWidth()-4)))
 		m.progress.label = "Starting..."
 		return m, tea.Batch(m.progress.Init(), startProgressAction(runCtx, deliveryCtx, action, values, events))
 	}
@@ -516,6 +525,7 @@ func (m AppModel) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.resultStatus = "Copied to clipboard"
+			m.resizeResultViewport()
 			return m, tea.SetClipboard(m.resultCopy)
 		case "home":
 			m.resultViewport.GotoTop()
@@ -573,21 +583,54 @@ func appView(content string) tea.View {
 	return view
 }
 
+func (m AppModel) panelOuterWidth() int {
+	if m.width <= 0 {
+		return 80
+	}
+	return min(maxPanelWidth, max(28, m.width))
+}
+
+func (m AppModel) innerWidth() int {
+	return max(20, m.panelOuterWidth()-panelStyle.GetHorizontalFrameSize())
+}
+
+func (m AppModel) renderPanel(content string) string {
+	return panelStyle.Width(m.panelOuterWidth()).Render(content)
+}
+
+func (m AppModel) formLabelWidth() int {
+	if m.selected < 0 || m.selected >= len(m.actions) {
+		return 16
+	}
+	width := 12
+	for _, field := range m.actions[m.selected].Fields {
+		if m.fieldVisible(field) {
+			width = max(width, lipgloss.Width(field.Label))
+		}
+	}
+	return min(26, width)
+}
+
 func (m AppModel) renderMenu() string {
 	var b strings.Builder
 	b.WriteString(titleStyle.Render("nwcli"))
-	b.WriteString("\n")
+	b.WriteString("  ")
 	b.WriteString(signalStyle.Render("local ── probe ── target"))
-	b.WriteString("\n\n")
+	b.WriteByte('\n')
 	b.WriteString(m.menu.View())
-	return panelStyle.Render(b.String())
+	return m.renderPanel(b.String())
 }
 
 func (m AppModel) renderForm() string {
 	action := m.actions[m.selected]
 	var b strings.Builder
 	b.WriteString(titleStyle.Render(action.Title))
+	if action.Description != "" {
+		b.WriteByte('\n')
+		b.WriteString(mutedStyle.Render(action.Description))
+	}
 	b.WriteString("\n\n")
+	labelWidth := m.formLabelWidth()
 	for i, field := range action.Fields {
 		if !m.fieldVisible(field) {
 			continue
@@ -601,41 +644,64 @@ func (m AppModel) renderForm() string {
 			value = m.input.View()
 		} else if value == "" {
 			value = mutedStyle.Render(field.Placeholder)
+		} else {
+			value = resultValueStyle.Render(value)
 		}
-		line := fmt.Sprintf("  %-16s %s", mutedStyle.Render(field.Label), value)
+		marker := "  "
+		labelStyle := fieldLabelStyle.Width(labelWidth)
 		if i == m.activeField {
-			line = selectedStyle.Render(">") + line[1:]
+			marker = selectedStyle.Render("▸ ")
+			labelStyle = bodyStyle.Bold(true).Width(labelWidth)
 		}
-		b.WriteString(line)
+		b.WriteString(marker)
+		b.WriteString(labelStyle.Render(field.Label))
+		b.WriteString("  ")
+		b.WriteString(value)
 		b.WriteByte('\n')
 	}
 	if m.formErr != nil {
 		b.WriteString("\n")
-		b.WriteString(errorStyle.Render(m.formErr.Error()))
+		b.WriteString(errorStyle.Render("! " + m.formErr.Error()))
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(mutedStyle.Render("↑/↓ fields • ←/→ or space toggle • enter run • esc back • ctrl+c quit"))
-	return panelStyle.Render(b.String())
+	b.WriteString(m.renderFooter("↑/↓ fields • ←/→ or space switch • enter run • esc back"))
+	return m.renderPanel(b.String())
 }
 
 func (m *AppModel) resizeMenu() {
-	m.menu.SetSize(
-		max(24, m.width-panelStyle.GetHorizontalFrameSize()),
-		max(8, m.height-panelStyle.GetVerticalFrameSize()-4),
-	)
+	desired := len(m.actions)*2 + 4
+	avail := max(6, m.height-panelStyle.GetVerticalFrameSize()-2)
+	m.menu.SetSize(m.innerWidth(), min(avail, max(8, desired)))
 }
 
 func (m *AppModel) resizeResultViewport() {
-	m.resultViewport.SetWidth(max(1, m.width-panelStyle.GetHorizontalFrameSize()))
-	m.resultViewport.SetHeight(max(1, m.height-panelStyle.GetVerticalFrameSize()-7))
+	m.resultViewport.SetWidth(m.innerWidth())
+	headerLines := 1
+	if m.result.Headline != "" {
+		headerLines++
+	}
+	if m.result.Summary != "" {
+		headerLines++
+	}
+	statusLines := 0
+	if m.resultStatus != "" {
+		statusLines = 1
+	}
+	chrome := panelStyle.GetVerticalFrameSize() + headerLines + statusLines + 3
+	avail := max(4, m.height-chrome)
+	if total := m.resultViewport.TotalLineCount(); total > 0 {
+		avail = min(avail, max(3, total))
+	}
+	m.resultViewport.SetHeight(avail)
 }
 
 func (m *AppModel) setResultContent() {
 	m.resultStatus = ""
-	contentWidth := max(1, m.width-panelStyle.GetHorizontalFrameSize())
+	contentWidth := m.innerWidth()
 	m.resultCopy = resultClipboardText(m.result, m.resultErr)
 	m.resultViewport.SetContent(renderResultBody(m.result, m.resultErr, contentWidth))
+	m.resizeResultViewport()
 	m.resultViewport.GotoTop()
 }
 
@@ -645,15 +711,15 @@ func (m AppModel) renderRunning() string {
 		if m.stopping {
 			help = "stopping current check..."
 		}
-		content := m.progress.View().Content + "\n" + mutedStyle.Render(help)
-		return panelStyle.Render(content)
+		content := m.progress.View().Content + "\n" + m.renderFooter(help)
+		return m.renderPanel(content)
 	}
 	title := "Running"
 	if m.selected >= 0 && m.selected < len(m.actions) {
 		title = m.actions[m.selected].Title
 	}
 	content := titleStyle.Render(title) + "\n\n" + mutedStyle.Render("Working...")
-	return panelStyle.Render(content)
+	return m.renderPanel(content)
 }
 
 func (m AppModel) renderResult() string {
@@ -663,22 +729,43 @@ func (m AppModel) renderResult() string {
 	b.WriteString(m.resultViewport.View())
 	b.WriteString("\n\n")
 	if m.resultStatus != "" {
-		b.WriteString(successStyle.Render(m.resultStatus))
+		b.WriteString(successStyle.Render("✓ " + m.resultStatus))
 		b.WriteString("\n")
 	}
 	hasForm := m.selected >= 0 && m.selected < len(m.actions) && len(m.actions[m.selected].Fields) > 0
-	actionsHelp := "r rerun • c copy • esc menu • q quit"
-	if hasForm {
-		actionsHelp = "r rerun • e edit • c copy • esc menu • q quit"
+	scrollable := m.resultViewport.TotalLineCount() > m.resultViewport.VisibleLineCount()
+	scrollTag := ""
+	if scrollable {
+		scrollTag = fmt.Sprintf(" (%d%%)", int(m.resultViewport.ScrollPercent()*100))
 	}
-	if m.resultViewport.TotalLineCount() > m.resultViewport.VisibleLineCount() {
-		b.WriteString(mutedStyle.Render("↑/↓ scroll • pgup/pgdn page • " + actionsHelp))
-	} else {
-		b.WriteString(mutedStyle.Render(actionsHelp))
+	switch {
+	case scrollable && hasForm:
+		b.WriteString(m.renderFooter("↑/↓ scroll" + scrollTag + " • r rerun • e edit • c copy • esc menu • q quit"))
+	case scrollable:
+		b.WriteString(m.renderFooter("↑/↓ scroll" + scrollTag + " • r rerun • c copy • esc menu • q quit"))
+	case hasForm:
+		b.WriteString(m.renderFooter("r rerun • e edit • c copy • esc menu • q quit"))
+	default:
+		b.WriteString(m.renderFooter("r rerun • c copy • esc menu • q quit"))
 	}
-	return panelStyle.Render(b.String())
+	return m.renderPanel(b.String())
 }
 
+func (m AppModel) renderFooter(text string) string {
+	w := m.innerWidth()
+	if lipgloss.Width(text) <= w {
+		return mutedStyle.Render(text)
+	}
+	parts := strings.Split(text, " • ")
+	for len(parts) > 2 {
+		parts = parts[:len(parts)-1]
+		candidate := strings.Join(parts, " • ")
+		if lipgloss.Width(candidate) <= w {
+			return mutedStyle.Render(candidate)
+		}
+	}
+	return mutedStyle.MaxWidth(w).Render(text)
+}
 func renderToggle(on bool) string {
 	if on {
 		return successStyle.Render("● ON")
@@ -715,6 +802,9 @@ func keyName(key tea.KeyPressMsg) string {
 	case tea.KeyBackspace:
 		return "backspace"
 	case tea.KeyTab:
+		if key.Key().Mod == tea.ModShift {
+			return "shift+tab"
+		}
 		return "tab"
 	}
 	return key.String()

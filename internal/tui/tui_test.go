@@ -631,3 +631,88 @@ func TestAppOptionsFieldCyclesAndControlsVisibility(t *testing.T) {
 		t.Fatalf("submitted values = %#v", got)
 	}
 }
+
+func TestAppFrameWidthNeverExceedsWindowAndStaysConsistentAcrossScreens(t *testing.T) {
+	actions := []Action{{
+		Title:       "Subnet carve",
+		Description: "Allocate ordered IPv4 child networks and see remaining space",
+		Fields: []Field{
+			{Name: "cidr", Label: "Parent CIDR", Placeholder: "10.0.0.0/24"},
+			{Name: "sizes", Label: "Child prefixes", Placeholder: "27,27,28,28"},
+			{Name: "sort", Label: "Sort largest-first (VLSM)", Default: "true", Toggle: true},
+		},
+		Run: func(context.Context, map[string]string) (Result, error) {
+			return Result{
+				Headline: "10.0.0.0/24",
+				Summary:  "96 of 256 addresses allocated",
+				Fields:   []ResultField{{Label: "Allocated", Value: "96"}},
+				Text:     "Parent: 10.0.0.0/24\n" + strings.Repeat("row\n", 20),
+			}, nil
+		},
+	}, {Title: "Quit", Description: "Exit nwcli"}}
+
+	model := NewAppModel(actions)
+	updated, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	app := updated.(AppModel)
+	menuFrame := app.View().Content
+	menuW, menuH := frameDimensions(menuFrame)
+	if menuW > 80 || menuH > 24 {
+		t.Fatalf("menu frame %dx%d exceeds 80x24", menuW, menuH)
+	}
+
+	updated, _ = app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	app = updated.(AppModel)
+	formFrame := app.View().Content
+	formW, formH := frameDimensions(formFrame)
+	if formW != menuW {
+		t.Fatalf("panel width jumped from menu %d to form %d", menuW, formW)
+	}
+	if formH > 24 {
+		t.Fatalf("form height %d exceeds 24", formH)
+	}
+	if strings.Contains(formFrame, "> Parent CIDR >") || strings.Contains(formFrame, "Parent CIDR >") {
+		t.Fatalf("form renders duplicate input prompt '> ':\n%s", formFrame)
+	}
+
+	updated, cmd := app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, _ = updated.(AppModel).Update(cmd())
+	app = updated.(AppModel)
+	resFrame := app.View().Content
+	resW, resH := frameDimensions(resFrame)
+	if resW != menuW || resW > 80 {
+		t.Fatalf("result width %d != menu width %d (or > 80)", resW, menuW)
+	}
+	if resH > 24 {
+		t.Fatalf("result height %d exceeds 24:\n%s", resH, resFrame)
+	}
+}
+
+func frameDimensions(s string) (width, height int) {
+	lines := strings.Split(s, "\n")
+	for _, line := range lines {
+		w := visibleWidth(line)
+		if w > width {
+			width = w
+		}
+	}
+	return width, len(lines)
+}
+
+func visibleWidth(s string) int {
+	inEsc := false
+	count := 0
+	for _, r := range s {
+		if r == '\x1b' {
+			inEsc = true
+			continue
+		}
+		if inEsc {
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+				inEsc = false
+			}
+			continue
+		}
+		count++
+	}
+	return count
+}

@@ -33,7 +33,11 @@ type ProgressModel struct {
 }
 
 func NewProgressModel(title string) ProgressModel {
-	bar := progress.New(progress.WithWidth(32))
+	return NewProgressModelWithWidth(title, 36)
+}
+
+func NewProgressModelWithWidth(title string, width int) ProgressModel {
+	bar := progress.New(progress.WithWidth(max(16, width)))
 	spin := spinner.New()
 	return ProgressModel{title: title, bar: bar, spinner: spin}
 }
@@ -71,7 +75,8 @@ func (m ProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m ProgressModel) View() tea.View {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n\n", m.title)
+	b.WriteString(titleStyle.Render(m.title))
+	b.WriteString("\n\n")
 	if !m.done {
 		fmt.Fprintf(&b, "%s %s\n", m.spinner.View(), resultToneStyle(m.tone).Render(m.label))
 	} else if m.err != nil {
