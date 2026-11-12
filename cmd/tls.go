@@ -57,6 +57,9 @@ func parseExtendedDuration(raw string) (time.Duration, error) {
 
 func tlsResultError(result checks.TLSResult) error {
 	if result.Err != nil {
+		if result.Reachable {
+			return newCommandError(exitUnhealthy, result.Err)
+		}
 		return newCommandError(exitUnreachable, result.Err)
 	}
 	if result.ExpiringSoon {
@@ -67,11 +70,16 @@ func tlsResultError(result checks.TLSResult) error {
 
 func renderTLS(w io.Writer, result checks.TLSResult) {
 	fmt.Fprintf(w, "Address: %s\nServer name: %s\nLatency: %s\n", result.Address, result.ServerName, result.Latency.Round(time.Millisecond))
-	if result.Err != nil {
-		fmt.Fprintf(w, "Reachable: false\nVerified: false\nError: %v\n", result.Err)
-		return
+	fmt.Fprintf(w, "Reachable: %t\nVerified: %t\n", result.Reachable, result.Verified)
+	if result.Version != "" {
+		fmt.Fprintf(w, "Version: %s\nCipher: %s\n", result.Version, result.CipherSuite)
 	}
-	fmt.Fprintf(w, "Reachable: %t\nVerified: %t\nVersion: %s\nCipher: %s\nExpiring soon: %t\n", result.Reachable, result.Verified, result.Version, result.CipherSuite, result.ExpiringSoon)
+	if result.Verified || len(result.Certificates) > 0 {
+		fmt.Fprintf(w, "Expiring soon: %t\n", result.ExpiringSoon)
+	}
+	if result.Err != nil {
+		fmt.Fprintf(w, "Error: %v\n", result.Err)
+	}
 	for i, certificate := range result.Certificates {
 		fmt.Fprintf(w, "\nCertificate %d:\nSubject: %s\nIssuer: %s\n", i+1, certificate.Subject, certificate.Issuer)
 		if len(certificate.DNSNames) > 0 {

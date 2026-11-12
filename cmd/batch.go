@@ -137,7 +137,11 @@ func newBatchTLSCommand() *cobra.Command {
 			for i, item := range batch {
 				results[i] = tlsOutput(item.Result)
 				if item.Result.Err != nil {
-					unreachable++
+					if item.Result.Reachable {
+						unhealthy++
+					} else {
+						unreachable++
+					}
 				} else if item.Result.ExpiringSoon {
 					unhealthy++
 				}

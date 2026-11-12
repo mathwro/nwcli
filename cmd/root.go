@@ -152,6 +152,7 @@ func interactiveActions() []tui.Action {
 				{Name: "port", Label: "Port", Placeholder: "443", Validate: validatePort},
 				{Name: "tls", Label: "TLS", Default: "true", Toggle: true, Validate: validateBoolean},
 				{Name: "path", Label: "Path", Placeholder: "/"},
+				{Name: "follow_redirects", Label: "Follow redirects", Default: "false", Toggle: true, Validate: validateBoolean},
 				{Name: "timeout", Label: "Timeout", Placeholder: "2s", Validate: validateDuration},
 			},
 			RunProgress: runInteractiveHTTP,
@@ -250,11 +251,21 @@ func runInteractivePing(ctx context.Context, values map[string]string, report fu
 	if err != nil {
 		return tui.Result{}, fmt.Errorf("invalid timeout %q: %w", values["timeout"], err)
 	}
+	var recorded []checks.PingAttempt
+	const maxRecordedAttempts = 200
 	options := checks.PingOptions{
 		Host:    values["host"],
 		Count:   count,
 		Timeout: timeout,
 		OnUpdate: func(update checks.PingUpdate) {
+			if continuous {
+				if len(recorded) >= maxRecordedAttempts {
+					copy(recorded, recorded[1:])
+					recorded[len(recorded)-1] = update.Attempt
+				} else {
+					recorded = append(recorded, update.Attempt)
+				}
+			}
 			if report != nil {
 				report(pingProgressEvent(update, count, continuous))
 			}
@@ -265,6 +276,7 @@ func runInteractivePing(ctx context.Context, values map[string]string, report fu
 	var checkErr error
 	if continuous {
 		summary, checkErr = continuousPingCheck(ctx, options)
+		attempts = recorded
 	} else {
 		attempts, summary, checkErr = pingCheck(ctx, options)
 	}
@@ -346,12 +358,19 @@ func runInteractiveHTTP(ctx context.Context, values map[string]string, report fu
 	if err != nil {
 		return tui.Result{}, fmt.Errorf("invalid tls value %q: %w", values["tls"], err)
 	}
+	followRedirects := false
+	if values["follow_redirects"] != "" {
+		followRedirects, err = strconv.ParseBool(values["follow_redirects"])
+		if err != nil {
+			return tui.Result{}, fmt.Errorf("invalid follow_redirects value %q: %w", values["follow_redirects"], err)
+		}
+	}
 	timeout, err := time.ParseDuration(values["timeout"])
 	if err != nil {
 		return tui.Result{}, fmt.Errorf("invalid timeout %q: %w", values["timeout"], err)
 	}
 	reportSingle(report, "Requesting endpoint", false)
-	checkResult := httpCheck(ctx, nil, checks.HTTPOptions{Host: values["host"], Port: port, TLS: useTLS, Path: values["path"], Timeout: timeout})
+	checkResult := httpCheck(ctx, nil, checks.HTTPOptions{Host: values["host"], Port: port, TLS: useTLS, Path: values["path"], FollowRedirects: followRedirects, Timeout: timeout})
 	reportSingle(report, "HTTP check complete", true)
 	var out bytes.Buffer
 	renderHTTP(&out, checkResult)
@@ -365,17 +384,54 @@ func runInteractiveHTTP(ctx context.Context, values map[string]string, report fu
 	if checkResult.Reachable {
 		summary = fmt.Sprintf("Endpoint responded with HTTP %d", checkResult.StatusCode)
 	}
+	fields := []tui.ResultField{
+		{Label: "Status", Value: strconv.Itoa(checkResult.StatusCode), Tone: statusTone},
+		{Label: "Latency", Value: checkResult.Latency.Round(time.Millisecond).String()},
+		boolResultField("Reachable", checkResult.Reachable),
+		boolResultField("Healthy", checkResult.Healthy),
+	}
+	if checkResult.Location != "" {
+		fields = append(fields, tui.ResultField{Label: "Location", Value: checkResult.Location})
+	}
+	var sections []tui.ResultSection
+	if timingLines := formatHTTPTimingLines(checkResult.Timings); len(timingLines) > 0 {
+		sections = append(sections, tui.ResultSection{Title: "Phase timings", Lines: timingLines})
+	}
 	return tui.Result{
 		Headline: checkResult.URL,
 		Summary:  summary,
 		Text:     out.String(),
-		Fields: []tui.ResultField{
-			{Label: "Status", Value: strconv.Itoa(checkResult.StatusCode), Tone: statusTone},
-			{Label: "Latency", Value: checkResult.Latency.Round(time.Millisecond).String()},
-			boolResultField("Reachable", checkResult.Reachable),
-			boolResultField("Healthy", checkResult.Healthy),
-		},
+		Fields:   fields,
+		Sections: sections,
 	}, httpResultError(checkResult)
+}
+
+func formatHTTPTimingLines(timings checks.HTTPTimings) []string {
+	total := timings.Total
+	if total <= 0 {
+		return nil
+	}
+	phases := []struct {
+		label string
+		d     time.Duration
+	}{
+		{"DNS lookup", timings.DNSLookup},
+		{"TCP connect", timings.TCPConnect},
+		{"TLS handshake", timings.TLSHandshake},
+		{"Server TTFB", timings.TTFB},
+	}
+	var lines []string
+	const barWidth = 20
+	for _, phase := range phases {
+		if phase.d <= 0 {
+			continue
+		}
+		filled := min(barWidth, max(1, int((phase.d*barWidth)/total)))
+		bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
+		lines = append(lines, fmt.Sprintf("%-14s %s  %s", phase.label, bar, phase.d.Round(time.Microsecond)))
+	}
+	lines = append(lines, fmt.Sprintf("%-14s %s  %s", "Total", strings.Repeat("─", barWidth), total.Round(time.Microsecond)))
+	return lines
 }
 
 func runInteractiveDNS(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (tui.Result, error) {

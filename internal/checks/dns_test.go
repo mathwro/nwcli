@@ -68,3 +68,14 @@ func TestCheckDNSRejectsUnsupportedRecordType(t *testing.T) {
 		t.Fatal("Err = nil")
 	}
 }
+
+func TestCheckDNSCNAMEIgnoresSelfCanonicalName(t *testing.T) {
+	resolver := stubDNSResolver{}
+	self := CheckDNS(context.Background(), resolver, DNSOptions{Host: "alias.example.com", Type: "CNAME"})
+	if self.Err != nil {
+		t.Fatalf("Err = %v", self.Err)
+	}
+	if !self.Reachable || self.Healthy || len(self.Records) != 0 {
+		t.Fatalf("self CNAME = %#v, want Reachable=true Healthy=false empty records", self)
+	}
+}
