@@ -16,6 +16,7 @@ type Field struct {
 	Default     string
 	Placeholder string
 	Toggle      bool
+	Options     []string
 	Visible     func(map[string]string) bool
 	Validate    func(string) error
 }

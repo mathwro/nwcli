@@ -43,9 +43,12 @@ func TestInteractiveActionsUseTogglesAndPlaceholders(t *testing.T) {
 	for _, action := range interactiveActions() {
 		for _, field := range action.Fields {
 			if field.Toggle {
-				if field.Name != "continuous" && field.Name != "tls" && field.Name != "follow_redirects" && field.Name != "sort" {
+				if field.Name != "continuous" && field.Name != "tls" && field.Name != "follow_redirects" && field.Name != "sort" && field.Name != "all" {
 					t.Fatalf("unexpected toggle %q on action %q", field.Name, action.Title)
 				}
+				continue
+			}
+			if len(field.Options) > 0 {
 				continue
 			}
 			if field.Default != "" {

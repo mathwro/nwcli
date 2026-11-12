@@ -548,3 +548,86 @@ func TestAppResultRendersSubnetAddressRailAndAllocations(t *testing.T) {
 		}
 	}
 }
+
+func TestAppResultRerunsWithRAndEditsPreservedFormWithE(t *testing.T) {
+	runs := 0
+	var seen []string
+	actions := []Action{{
+		Title:  "CIDR inspect",
+		Fields: []Field{{Name: "cidr", Label: "CIDR", Placeholder: "10.0.0.0/24"}},
+		Run: func(_ context.Context, values map[string]string) (Result, error) {
+			runs++
+			seen = append(seen, values["cidr"])
+			return Result{Headline: values["cidr"], Text: values["cidr"]}, nil
+		},
+	}}
+	model := NewAppModel(actions)
+	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	app := updated.(AppModel)
+	for _, ch := range "192.168.1.0/24" {
+		updated, _ = app.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+		app = updated.(AppModel)
+	}
+	updated, cmd := app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, _ = updated.(AppModel).Update(cmd())
+	app = updated.(AppModel)
+	if app.Screen() != "result" || runs != 1 || seen[0] != "192.168.1.0/24" {
+		t.Fatalf("after first run: screen=%q runs=%d seen=%v", app.Screen(), runs, seen)
+	}
+
+	// Press 'r' on result screen to immediately re-run with same values
+	updated, rerunCmd := app.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	if rerunCmd == nil {
+		t.Fatal("rerunCmd = nil on pressing r")
+	}
+	updated, _ = updated.(AppModel).Update(rerunCmd())
+	app = updated.(AppModel)
+	if app.Screen() != "result" || runs != 2 || seen[1] != "192.168.1.0/24" {
+		t.Fatalf("after r re-run: screen=%q runs=%d seen=%v", app.Screen(), runs, seen)
+	}
+
+	// Press 'e' on result screen to return to form with previous input intact
+	updated, _ = app.Update(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	app = updated.(AppModel)
+	if app.Screen() != "form" {
+		t.Fatalf("Screen = %q, want form after pressing e", app.Screen())
+	}
+	if view := app.View().Content; !strings.Contains(view, "192.168.1.0/24") {
+		t.Fatalf("preserved form missing previous value:\n%s", view)
+	}
+}
+
+func TestAppOptionsFieldCyclesAndControlsVisibility(t *testing.T) {
+	var got map[string]string
+	actions := []Action{{
+		Title: "CIDR calculator",
+		Fields: []Field{
+			{Name: "mode", Label: "Mode", Default: "inspect", Options: []string{"inspect", "contains"}},
+			{Name: "cidr", Label: "CIDR", Placeholder: "10.0.0.0/24"},
+			{
+				Name: "ip", Label: "IP", Placeholder: "10.0.0.42",
+				Visible: func(v map[string]string) bool { return v["mode"] == "contains" },
+			},
+		},
+		Run: func(_ context.Context, values map[string]string) (Result, error) {
+			got = values
+			return Result{Text: "ok"}, nil
+		},
+	}}
+	model := NewAppModel(actions)
+	updated, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	app := updated.(AppModel)
+	if strings.Contains(app.View().Content, "10.0.0.42") {
+		t.Fatalf("IP field visible in inspect mode:\n%s", app.View().Content)
+	}
+	updated, _ = app.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	app = updated.(AppModel)
+	if !strings.Contains(app.View().Content, "10.0.0.42") {
+		t.Fatalf("IP field hidden after switching to contains mode:\n%s", app.View().Content)
+	}
+	updated, cmd := app.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	updated, _ = updated.(AppModel).Update(cmd())
+	if got["mode"] != "contains" || got["ip"] != "10.0.0.42" {
+		t.Fatalf("submitted values = %#v", got)
+	}
+}

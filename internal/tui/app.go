@@ -28,6 +28,7 @@ type AppModel struct {
 	activeField    int
 	input          textinput.Model
 	values         map[string]string
+	lastRunValues  map[string]string
 	fieldEdited    map[string]bool
 	width          int
 	height         int
@@ -207,6 +208,11 @@ func (m AppModel) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, quitCmd()
 				}
 				m.selected = item.index
+				if len(item.action.Fields) == 0 {
+					m.values = nil
+					m.fieldEdited = nil
+					return m.executeAction(item.action, map[string]string{})
+				}
 				m.openForm()
 				return m, nil
 			}
@@ -233,7 +239,13 @@ func (m *AppModel) openForm() {
 	m.values = make(map[string]string, len(action.Fields))
 	m.fieldEdited = make(map[string]bool, len(action.Fields))
 	for _, field := range action.Fields {
-		m.values[field.Name] = field.Default
+		if field.Default != "" {
+			m.values[field.Name] = field.Default
+		} else if len(field.Options) > 0 {
+			m.values[field.Name] = field.Options[0]
+		} else {
+			m.values[field.Name] = ""
+		}
 	}
 	m.input = textinput.New()
 	for i, field := range action.Fields {
@@ -270,6 +282,20 @@ func (m AppModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	}
+	if m.activeFieldHasOptions() {
+		switch keyName(key) {
+		case "left":
+			m.cycleOption(-1)
+			return m, nil
+		case "right":
+			m.cycleOption(1)
+			return m, nil
+		}
+		if key.Key().Code == ' ' {
+			m.cycleOption(1)
+			return m, nil
+		}
+	}
 	switch keyName(key) {
 	case "esc":
 		m.formErr = nil
@@ -286,7 +312,7 @@ func (m AppModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case "enter":
 		return m.submitForm()
 	}
-	if m.activeFieldIsToggle() {
+	if m.activeFieldIsToggle() || m.activeFieldHasOptions() {
 		return m, nil
 	}
 	m.formErr = nil
@@ -327,7 +353,7 @@ func (m *AppModel) storeActiveField() {
 		return
 	}
 	field := action.Fields[m.activeField]
-	if field.Toggle {
+	if field.Toggle || len(field.Options) > 0 {
 		return
 	}
 	m.values[field.Name] = strings.TrimSpace(m.input.Value())
@@ -338,12 +364,35 @@ func (m *AppModel) activeFieldIsToggle() bool {
 	return m.activeField >= 0 && m.activeField < len(action.Fields) && action.Fields[m.activeField].Toggle
 }
 
+func (m *AppModel) activeFieldHasOptions() bool {
+	action := m.actions[m.selected]
+	return m.activeField >= 0 && m.activeField < len(action.Fields) && len(action.Fields[m.activeField].Options) > 0
+}
+
+func (m *AppModel) cycleOption(delta int) {
+	m.formErr = nil
+	field := m.actions[m.selected].Fields[m.activeField]
+	if len(field.Options) == 0 {
+		return
+	}
+	current := m.values[field.Name]
+	idx := 0
+	for i, opt := range field.Options {
+		if opt == current {
+			idx = i
+			break
+		}
+	}
+	idx = (idx + delta + len(field.Options)) % len(field.Options)
+	m.values[field.Name] = field.Options[idx]
+}
+
 func (m AppModel) fieldVisible(field Field) bool {
 	return field.Visible == nil || field.Visible(m.values)
 }
 
 func (m *AppModel) configureInput(field Field) {
-	if field.Toggle {
+	if field.Toggle || len(field.Options) > 0 {
 		m.input.Blur()
 		return
 	}
@@ -356,7 +405,7 @@ func (m *AppModel) configureInput(field Field) {
 
 func (m AppModel) submittedFieldValue(field Field) string {
 	value := m.values[field.Name]
-	if field.Toggle || value != "" || m.fieldEdited[field.Name] {
+	if field.Toggle || len(field.Options) > 0 || value != "" || m.fieldEdited[field.Name] {
 		return value
 	}
 	return field.Placeholder
@@ -385,7 +434,15 @@ func (m AppModel) submitForm() (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	}
+	return m.executeAction(action, values)
+}
+
+func (m AppModel) executeAction(action Action, values map[string]string) (tea.Model, tea.Cmd) {
 	m.formErr = nil
+	m.lastRunValues = make(map[string]string, len(values))
+	for k, v := range values {
+		m.lastRunValues[k] = v
+	}
 	m.screen = screenRunning
 	if action.RunProgress != nil {
 		events := make(chan tea.Msg, 1)
@@ -435,15 +492,25 @@ func (m AppModel) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if key, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyName(key) {
 		case "esc", "enter", "backspace":
+			m.clearResult()
 			m.screen = screenMenu
-			m.resultTitle = ""
-			m.result = Result{}
-			m.resultErr = nil
-			m.resultCopy = ""
-			m.resultStatus = ""
-			m.resultViewport.SetContent("")
-			m.resultViewport.GotoTop()
 			return m, nil
+		case "r":
+			if m.selected >= 0 && m.selected < len(m.actions) {
+				action := m.actions[m.selected]
+				rerunValues := make(map[string]string, len(m.lastRunValues))
+				for k, v := range m.lastRunValues {
+					rerunValues[k] = v
+				}
+				m.clearResult()
+				return m.executeAction(action, rerunValues)
+			}
+		case "e":
+			if m.selected >= 0 && m.selected < len(m.actions) && len(m.actions[m.selected].Fields) > 0 {
+				m.clearResult()
+				m.reopenForm()
+				return m, nil
+			}
 		case "c":
 			if m.resultCopy == "" {
 				return m, nil
@@ -461,6 +528,30 @@ func (m AppModel) updateResult(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.resultViewport, cmd = m.resultViewport.Update(msg)
 	return m, cmd
+}
+
+func (m *AppModel) clearResult() {
+	m.resultTitle = ""
+	m.result = Result{}
+	m.resultErr = nil
+	m.resultCopy = ""
+	m.resultStatus = ""
+	m.resultViewport.SetContent("")
+	m.resultViewport.GotoTop()
+}
+
+func (m *AppModel) reopenForm() {
+	action := m.actions[m.selected]
+	m.screen = screenForm
+	m.formErr = nil
+	m.activeField = -1
+	for i, field := range action.Fields {
+		if m.fieldVisible(field) {
+			m.activeField = i
+			m.configureInput(field)
+			break
+		}
+	}
 }
 
 func (m AppModel) View() tea.View {
@@ -504,6 +595,8 @@ func (m AppModel) renderForm() string {
 		value := m.values[field.Name]
 		if field.Toggle {
 			value = renderToggle(value == "true")
+		} else if len(field.Options) > 0 {
+			value = renderOptions(field.Options, value)
 		} else if i == m.activeField {
 			value = m.input.View()
 		} else if value == "" {
@@ -573,10 +666,15 @@ func (m AppModel) renderResult() string {
 		b.WriteString(successStyle.Render(m.resultStatus))
 		b.WriteString("\n")
 	}
+	hasForm := m.selected >= 0 && m.selected < len(m.actions) && len(m.actions[m.selected].Fields) > 0
+	actionsHelp := "r rerun • c copy • esc menu • q quit"
+	if hasForm {
+		actionsHelp = "r rerun • e edit • c copy • esc menu • q quit"
+	}
 	if m.resultViewport.TotalLineCount() > m.resultViewport.VisibleLineCount() {
-		b.WriteString(mutedStyle.Render("↑/↓ scroll • pgup/pgdn page • c copy • esc back • q quit"))
+		b.WriteString(mutedStyle.Render("↑/↓ scroll • pgup/pgdn page • " + actionsHelp))
 	} else {
-		b.WriteString(mutedStyle.Render("c copy • esc back • q quit"))
+		b.WriteString(mutedStyle.Render(actionsHelp))
 	}
 	return panelStyle.Render(b.String())
 }
@@ -586,6 +684,18 @@ func renderToggle(on bool) string {
 		return successStyle.Render("● ON")
 	}
 	return mutedStyle.Render("○ OFF")
+}
+
+func renderOptions(options []string, selected string) string {
+	parts := make([]string, len(options))
+	for i, opt := range options {
+		if opt == selected {
+			parts[i] = selectedStyle.Render("[" + opt + "]")
+		} else {
+			parts[i] = mutedStyle.Render(opt)
+		}
+	}
+	return strings.Join(parts, "  ")
 }
 
 func keyName(key tea.KeyPressMsg) string {

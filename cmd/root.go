@@ -41,7 +41,22 @@ func NewRootCommand(menuRunner func(context.Context) error) *cobra.Command {
 	}
 	root.SetVersionTemplate("{{.Version}}\n")
 	root.PersistentFlags().StringVar(&outputFormat, "output", "text", "output format: text or json")
-	root.AddCommand(newSubnetCommand(), newPingCommand(), newHTTPCommand(), newDNSCommand(), newTCPCommand(), newTLSCommand(), newBatchCommand(), newUpdateCommand())
+	_ = root.RegisterFlagCompletionFunc("output", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+		return []string{"text", "json"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	root.AddCommand(
+		newSubnetCommand(),
+		newPingCommand(),
+		newTraceCommand(),
+		newHTTPCommand(),
+		newDNSCommand(),
+		newTCPCommand(),
+		newTLSCommand(),
+		newInterfacesCommand(),
+		newBatchCommand(),
+		newUpdateCommand(),
+		newCompletionCommand(),
+	)
 	return root
 }
 
@@ -93,9 +108,34 @@ func interactiveActions() []tui.Action {
 		},
 		{
 			Title:       "CIDR inspect",
-			Description: "Show normalized range, family, prefix, and address count",
+			Description: "Inspect, test containment/overlap, split, or summarize CIDRs",
 			Fields: []tui.Field{
-				{Name: "cidr", Label: "CIDR", Placeholder: "10.0.0.0/24", Validate: validateCIDR},
+				{Name: "mode", Label: "Operation", Default: "inspect", Options: []string{"inspect", "contains", "overlap", "split", "summarize"}},
+				{
+					Name: "cidr", Label: "CIDR", Placeholder: "10.0.0.0/24",
+					Visible:  func(v map[string]string) bool { return v["mode"] != "summarize" },
+					Validate: validateCIDR,
+				},
+				{
+					Name: "address", Label: "IP address", Placeholder: "10.0.0.42",
+					Visible:  func(v map[string]string) bool { return v["mode"] == "contains" },
+					Validate: validateIPAddress,
+				},
+				{
+					Name: "cidr_b", Label: "Second CIDR", Placeholder: "10.0.0.128/25",
+					Visible:  func(v map[string]string) bool { return v["mode"] == "overlap" },
+					Validate: validateCIDR,
+				},
+				{
+					Name: "prefix", Label: "Child prefix", Placeholder: "26",
+					Visible:  func(v map[string]string) bool { return v["mode"] == "split" },
+					Validate: validatePositiveInteger,
+				},
+				{
+					Name: "cidrs", Label: "CIDR list", Placeholder: "10.0.0.0/25, 10.0.0.128/25",
+					Visible:  func(v map[string]string) bool { return v["mode"] == "summarize" },
+					Validate: validateCIDRList,
+				},
 			},
 			Run: runInteractiveCIDR,
 		},
@@ -113,6 +153,16 @@ func interactiveActions() []tui.Action {
 				{Name: "timeout", Label: "Timeout", Placeholder: "1s", Validate: validateDuration},
 			},
 			RunProgress: runInteractivePing,
+		},
+		{
+			Title:       "Trace route",
+			Description: "Trace hop-by-hop ICMP path and latency to a host",
+			Fields: []tui.Field{
+				{Name: "host", Label: "Host", Placeholder: "1.1.1.1", Validate: validateRequired},
+				{Name: "max_hops", Label: "Max hops", Placeholder: "20", Validate: validateHopLimit},
+				{Name: "timeout", Label: "Hop timeout", Placeholder: "1s", Validate: validateDuration},
+			},
+			RunProgress: runInteractiveTrace,
 		},
 		{
 			Title:       "DNS lookup",
@@ -157,6 +207,14 @@ func interactiveActions() []tui.Action {
 				{Name: "timeout", Label: "Timeout", Placeholder: "2s", Validate: validateDuration},
 			},
 			RunProgress: runInteractiveHTTP,
+		},
+		{
+			Title:       "Local interfaces",
+			Description: "Inspect local NICs, MTU, MAC, flags, and assigned CIDRs",
+			Fields: []tui.Field{
+				{Name: "all", Label: "Include down", Default: "false", Toggle: true, Validate: validateBoolean},
+			},
+			Run: runInteractiveInterfaces,
 		},
 		{Title: "Quit", Description: "Exit nwcli"},
 	}
@@ -223,34 +281,213 @@ func runInteractiveSubnet(_ context.Context, values map[string]string) (tui.Resu
 }
 
 func runInteractiveCIDR(_ context.Context, values map[string]string) (tui.Result, error) {
-	info, err := subnet.InspectCIDR(values["cidr"])
+	mode := values["mode"]
+	if mode == "" {
+		mode = "inspect"
+	}
+	switch mode {
+	case "contains":
+		contains, err := subnet.ContainsCIDR(values["cidr"], values["address"])
+		if err != nil {
+			return tui.Result{}, err
+		}
+		verdict := "Address is outside CIDR"
+		if contains {
+			verdict = "Address is inside CIDR"
+		}
+		return tui.Result{
+			Headline: fmt.Sprintf("%s  ∈  %s", values["address"], values["cidr"]),
+			Summary:  verdict,
+			Text:     fmt.Sprintf("%t\n", contains),
+			Fields: []tui.ResultField{
+				{Label: "CIDR", Value: values["cidr"]},
+				{Label: "Address", Value: values["address"]},
+				boolResultField("Contains", contains),
+			},
+		}, nil
+	case "overlap":
+		overlap, err := subnet.OverlapsCIDR(values["cidr"], values["cidr_b"])
+		if err != nil {
+			return tui.Result{}, err
+		}
+		summary := "Ranges are disjoint"
+		if overlap {
+			summary = "Ranges overlap"
+		}
+		return tui.Result{
+			Headline: fmt.Sprintf("%s  ∩  %s", values["cidr"], values["cidr_b"]),
+			Summary:  summary,
+			Text:     fmt.Sprintf("%t\n", overlap),
+			Fields: []tui.ResultField{
+				{Label: "First CIDR", Value: values["cidr"]},
+				{Label: "Second CIDR", Value: values["cidr_b"]},
+				{Label: "Overlaps", Value: strconv.FormatBool(overlap), Tone: map[bool]tui.ResultTone{true: tui.ToneWarning, false: tui.ToneSuccess}[overlap]},
+			},
+		}, nil
+	case "split":
+		childPrefix, err := strconv.Atoi(strings.TrimPrefix(strings.TrimSpace(values["prefix"]), "/"))
+		if err != nil {
+			return tui.Result{}, fmt.Errorf("invalid prefix %q: %w", values["prefix"], err)
+		}
+		children, err := subnet.SplitCIDR(values["cidr"], childPrefix)
+		if err != nil {
+			return tui.Result{}, err
+		}
+		return tui.Result{
+			Headline: values["cidr"],
+			Summary:  fmt.Sprintf("Split into %d /%d prefixes", len(children), childPrefix),
+			Text:     strings.Join(children, "\n") + "\n",
+			Fields: []tui.ResultField{
+				{Label: "Parent", Value: values["cidr"]},
+				{Label: "Child prefix", Value: fmt.Sprintf("/%d", childPrefix)},
+				{Label: "Count", Value: strconv.Itoa(len(children)), Tone: tui.ToneSuccess},
+			},
+			Sections: []tui.ResultSection{{Title: "Child prefixes", Lines: children}},
+		}, nil
+	case "summarize":
+		inputs := splitCIDRList(values["cidrs"])
+		prefixes, err := subnet.SummarizeCIDRs(inputs)
+		if err != nil {
+			return tui.Result{}, err
+		}
+		return tui.Result{
+			Headline: fmt.Sprintf("%d → %d prefixes", len(inputs), len(prefixes)),
+			Summary:  "Collapsed adjacent and contained ranges",
+			Text:     strings.Join(prefixes, "\n") + "\n",
+			Fields: []tui.ResultField{
+				{Label: "Input count", Value: strconv.Itoa(len(inputs))},
+				{Label: "Summary count", Value: strconv.Itoa(len(prefixes)), Tone: tui.ToneSuccess},
+			},
+			Sections: []tui.ResultSection{{Title: "Summary prefixes", Lines: prefixes}},
+		}, nil
+	default:
+		info, err := subnet.InspectCIDR(values["cidr"])
+		if err != nil {
+			return tui.Result{}, err
+		}
+		var out bytes.Buffer
+		_ = renderCIDRInfo(&out, info)
+		fields := []tui.ResultField{
+			{Label: "Family", Value: info.Family},
+			{Label: "Prefix", Value: fmt.Sprintf("/%d", info.Prefix)},
+			{Label: "Scope", Value: info.Scope},
+		}
+		if info.Netmask != "" {
+			fields = append(fields,
+				tui.ResultField{Label: "Netmask", Value: info.Netmask},
+				tui.ResultField{Label: "Wildcard", Value: info.Wildcard},
+			)
+		}
+		fields = append(fields,
+			tui.ResultField{Label: "First address", Value: info.First},
+			tui.ResultField{Label: "Last address", Value: info.Last},
+			tui.ResultField{Label: "Usable range", Value: fmt.Sprintf("%s → %s (%s)", info.UsableFirst, info.UsableLast, info.UsableAddresses)},
+			tui.ResultField{Label: "Addresses", Value: info.Addresses, Tone: tui.ToneSuccess},
+		)
+		return tui.Result{
+			Headline: info.CIDR,
+			Summary:  fmt.Sprintf("%s · %s", info.Family, info.Scope),
+			Text:     out.String(),
+			Fields:   fields,
+		}, nil
+	}
+}
+
+func runInteractiveTrace(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (tui.Result, error) {
+	maxHops, err := strconv.Atoi(values["max_hops"])
 	if err != nil {
-		return tui.Result{}, err
+		return tui.Result{}, fmt.Errorf("invalid max_hops %q: %w", values["max_hops"], err)
+	}
+	timeout, err := time.ParseDuration(values["timeout"])
+	if err != nil {
+		return tui.Result{}, fmt.Errorf("invalid timeout %q: %w", values["timeout"], err)
+	}
+	result, checkErr := traceCheck(ctx, checks.TraceOptions{
+		Host:    values["host"],
+		MaxHops: maxHops,
+		Timeout: timeout,
+		OnUpdate: func(hop checks.TraceHop) {
+			if report == nil {
+				return
+			}
+			label := fmt.Sprintf("Hop %d · %s (%s)", hop.TTL, hop.Address, hop.Latency.Round(time.Millisecond))
+			tone := tui.ToneSuccess
+			if hop.Timeout {
+				label = fmt.Sprintf("Hop %d · * (timed out)", hop.TTL)
+				tone = tui.ToneWarning
+			} else if hop.Err != nil {
+				label = fmt.Sprintf("Hop %d · %v", hop.TTL, hop.Err)
+				tone = tui.ToneDanger
+			}
+			report(tui.ProgressEvent{Label: label, Current: hop.TTL, Total: maxHops, Tone: tone})
+		},
+	})
+	var out bytes.Buffer
+	renderTrace(&out, result)
+	hopLines := make([]string, len(result.Hops))
+	for i, hop := range result.Hops {
+		if hop.Timeout {
+			hopLines[i] = fmt.Sprintf("%2d  *", hop.TTL)
+		} else if hop.Err != nil {
+			hopLines[i] = fmt.Sprintf("%2d  %v", hop.TTL, hop.Err)
+		} else {
+			hopLines[i] = fmt.Sprintf("%2d  %-36s %s", hop.TTL, hop.Address, hop.Latency.Round(time.Microsecond))
+		}
+	}
+	summary := fmt.Sprintf("Stopped after %d hops", len(result.Hops))
+	if result.Reached {
+		summary = fmt.Sprintf("Destination reached in %d hops", len(result.Hops))
+	}
+	headline := values["host"]
+	if result.Target != "" && result.Target != values["host"] {
+		headline = fmt.Sprintf("%s (%s)", values["host"], result.Target)
+	}
+	return tui.Result{
+		Headline: headline,
+		Summary:  summary,
+		Text:     out.String(),
+		Fields: []tui.ResultField{
+			boolResultField("Reached", result.Reached),
+			{Label: "Hops", Value: strconv.Itoa(len(result.Hops))},
+			{Label: "Target IP", Value: result.Target},
+		},
+		Sections: []tui.ResultSection{{Title: "Route hops", Lines: hopLines}},
+	}, pingResultError(checkErr)
+}
+
+func runInteractiveInterfaces(_ context.Context, values map[string]string) (tui.Result, error) {
+	includeAll := values["all"] == "true"
+	items, err := listInterfaces(includeAll)
+	if err != nil {
+		return tui.Result{}, newCommandError(exitUnreachable, err)
 	}
 	var out bytes.Buffer
-	_ = renderCIDRInfo(&out, info)
-	fields := []tui.ResultField{
-		{Label: "Family", Value: info.Family},
-		{Label: "Prefix", Value: fmt.Sprintf("/%d", info.Prefix)},
-		{Label: "Scope", Value: info.Scope},
+	_ = renderInterfaces(&out, items)
+	sections := make([]tui.ResultSection, 0, len(items))
+	totalAddrs := 0
+	for _, item := range items {
+		totalAddrs += len(item.Addresses)
+		mac := item.HardwareAddr
+		if mac == "" {
+			mac = "none"
+		}
+		lines := []string{fmt.Sprintf("mtu %d · mac %s · %s", item.MTU, mac, strings.Join(item.Flags, ","))}
+		if len(item.Addresses) == 0 {
+			lines = append(lines, "(no addresses)")
+		} else {
+			lines = append(lines, item.Addresses...)
+		}
+		sections = append(sections, tui.ResultSection{Title: item.Name, Lines: lines})
 	}
-	if info.Netmask != "" {
-		fields = append(fields,
-			tui.ResultField{Label: "Netmask", Value: info.Netmask},
-			tui.ResultField{Label: "Wildcard", Value: info.Wildcard},
-		)
-	}
-	fields = append(fields,
-		tui.ResultField{Label: "First address", Value: info.First},
-		tui.ResultField{Label: "Last address", Value: info.Last},
-		tui.ResultField{Label: "Usable range", Value: fmt.Sprintf("%s → %s (%s)", info.UsableFirst, info.UsableLast, info.UsableAddresses)},
-		tui.ResultField{Label: "Addresses", Value: info.Addresses, Tone: tui.ToneSuccess},
-	)
 	return tui.Result{
-		Headline: info.CIDR,
-		Summary:  fmt.Sprintf("%s · %s", info.Family, info.Scope),
+		Headline: fmt.Sprintf("%d interfaces", len(items)),
+		Summary:  fmt.Sprintf("%d assigned addresses", totalAddrs),
 		Text:     out.String(),
-		Fields:   fields,
+		Fields: []tui.ResultField{
+			{Label: "Interfaces", Value: strconv.Itoa(len(items)), Tone: tui.ToneSuccess},
+			{Label: "Addresses", Value: strconv.Itoa(totalAddrs)},
+		},
+		Sections: sections,
 	}, nil
 }
 
@@ -692,6 +929,43 @@ func validatePort(value string) error {
 	port, err := strconv.Atoi(value)
 	if err != nil || port < 1 || port > 65535 {
 		return fmt.Errorf("must be between 1 and 65535")
+	}
+	return nil
+}
+
+func validateIPAddress(value string) error {
+	if net.ParseIP(strings.TrimSpace(value)) == nil {
+		return fmt.Errorf("invalid IP address")
+	}
+	return nil
+}
+
+func splitCIDRList(raw string) []string {
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t'
+	})
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
+func validateCIDRList(value string) error {
+	items := splitCIDRList(value)
+	if len(items) == 0 {
+		return fmt.Errorf("enter at least one CIDR")
+	}
+	_, err := subnet.SummarizeCIDRs(items)
+	return err
+}
+
+func validateHopLimit(value string) error {
+	n, err := strconv.Atoi(value)
+	if err != nil || n < 1 || n > 64 {
+		return fmt.Errorf("must be between 1 and 64")
 	}
 	return nil
 }

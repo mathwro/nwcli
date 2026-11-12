@@ -36,6 +36,9 @@ func newDNSCommand() *cobra.Command {
 	cmd.Flags().StringVar(&recordType, "type", "A", "record type: A, AAAA, CNAME, MX, NS, TXT, or PTR")
 	cmd.Flags().StringVar(&server, "server", "", "DNS resolver address, with optional port")
 	cmd.Flags().DurationVar(&timeout, "timeout", 2*time.Second, "query timeout")
+	_ = cmd.RegisterFlagCompletionFunc("type", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+		return []string{"A", "AAAA", "CNAME", "MX", "NS", "TXT", "PTR"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 
