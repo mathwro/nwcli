@@ -254,3 +254,7 @@ Project layout:
 - `internal/tui/`: Bubble Tea models, compact-panel TUI, and styling.
 
 See `AGENTS.md` for agent/development rules.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).
