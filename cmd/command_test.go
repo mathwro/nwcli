@@ -30,6 +30,18 @@ func TestSubnetCarveCommandPrintsAllocation(t *testing.T) {
 	}
 }
 
+func TestSubnetCarveCommandSupportsNamedVLSMSort(t *testing.T) {
+	stdout, _, err := executeForTest("subnet", "carve", "--cidr", "10.0.0.0/24", "--sizes", "db:28,web:27", "--sort")
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	for _, fragment := range []string{"web", "10.0.0.0/27", "db", "10.0.0.32/28"} {
+		if !strings.Contains(stdout, fragment) {
+			t.Fatalf("stdout missing %q:\n%s", fragment, stdout)
+		}
+	}
+}
+
 func TestSubnetCarveRequiresCIDR(t *testing.T) {
 	_, _, err := executeForTest("subnet", "carve", "--sizes", "27")
 	if err == nil {
@@ -106,7 +118,7 @@ func TestInteractiveActionsUseTUIAppFields(t *testing.T) {
 	if actions[0].Title != "Subnet carve" {
 		t.Fatalf("first action = %q, want Subnet carve", actions[0].Title)
 	}
-	if len(actions[0].Fields) != 2 || actions[0].Fields[0].Label != "Parent CIDR" || actions[0].Fields[1].Label != "Child prefixes" {
+	if len(actions[0].Fields) != 3 || actions[0].Fields[0].Label != "Parent CIDR" || actions[0].Fields[1].Label != "Child prefixes" || !actions[0].Fields[2].Toggle {
 		t.Fatalf("subnet fields = %#v", actions[0].Fields)
 	}
 	for _, action := range actions {

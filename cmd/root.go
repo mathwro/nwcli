@@ -86,7 +86,8 @@ func interactiveActions() []tui.Action {
 			Description: "Allocate ordered IPv4 child networks and see remaining space",
 			Fields: []tui.Field{
 				{Name: "cidr", Label: "Parent CIDR", Placeholder: "10.0.0.0/24", Validate: validateCIDR},
-				{Name: "sizes", Label: "Child prefixes", Placeholder: "27,27,28,28", Validate: validatePrefixes},
+				{Name: "sizes", Label: "Child prefixes", Placeholder: "web:27,app:27,db:28,mgmt:28", Validate: validatePrefixes},
+				{Name: "sort", Label: "Sort largest-first (VLSM)", Default: "true", Toggle: true, Validate: validateBoolean},
 			},
 			Run: runInteractiveSubnet,
 		},
@@ -162,11 +163,18 @@ func interactiveActions() []tui.Action {
 }
 
 func runInteractiveSubnet(_ context.Context, values map[string]string) (tui.Result, error) {
-	prefixes, err := subnet.ParsePrefixes(values["sizes"])
+	specs, err := subnet.ParsePrefixSpecs(values["sizes"])
 	if err != nil {
 		return tui.Result{}, err
 	}
-	plan, err := subnet.Plan(values["cidr"], prefixes)
+	sortVLSM := false
+	if values["sort"] != "" {
+		sortVLSM, err = strconv.ParseBool(values["sort"])
+		if err != nil {
+			return tui.Result{}, fmt.Errorf("invalid sort value %q: %w", values["sort"], err)
+		}
+	}
+	plan, err := subnet.PlanSpecs(values["cidr"], specs, sortVLSM)
 	if err != nil {
 		return tui.Result{}, err
 	}
@@ -177,9 +185,13 @@ func runInteractiveSubnet(_ context.Context, values map[string]string) (tui.Resu
 	segments := make([]tui.AllocationSegment, len(plan.Blocks))
 	var allocated uint64
 	for i, block := range plan.Blocks {
+		label := block.CIDR.String()
+		if block.Name != "" {
+			label = block.Name + "  " + label
+		}
 		segments[i] = tui.AllocationSegment{
 			Index:  block.Index,
-			Label:  block.CIDR.String(),
+			Label:  label,
 			Start:  block.First.String(),
 			End:    block.Last.String(),
 			Offset: uint64(block.StartOffset),
@@ -216,18 +228,29 @@ func runInteractiveCIDR(_ context.Context, values map[string]string) (tui.Result
 		return tui.Result{}, err
 	}
 	var out bytes.Buffer
-	fmt.Fprintf(&out, "CIDR: %s\nFamily: %s\nPrefix: /%d\nFirst: %s\nLast: %s\nAddresses: %s\n", info.CIDR, info.Family, info.Prefix, info.First, info.Last, info.Addresses)
+	_ = renderCIDRInfo(&out, info)
+	fields := []tui.ResultField{
+		{Label: "Family", Value: info.Family},
+		{Label: "Prefix", Value: fmt.Sprintf("/%d", info.Prefix)},
+		{Label: "Scope", Value: info.Scope},
+	}
+	if info.Netmask != "" {
+		fields = append(fields,
+			tui.ResultField{Label: "Netmask", Value: info.Netmask},
+			tui.ResultField{Label: "Wildcard", Value: info.Wildcard},
+		)
+	}
+	fields = append(fields,
+		tui.ResultField{Label: "First address", Value: info.First},
+		tui.ResultField{Label: "Last address", Value: info.Last},
+		tui.ResultField{Label: "Usable range", Value: fmt.Sprintf("%s → %s (%s)", info.UsableFirst, info.UsableLast, info.UsableAddresses)},
+		tui.ResultField{Label: "Addresses", Value: info.Addresses, Tone: tui.ToneSuccess},
+	)
 	return tui.Result{
 		Headline: info.CIDR,
-		Summary:  "Normalized network range",
+		Summary:  fmt.Sprintf("%s · %s", info.Family, info.Scope),
 		Text:     out.String(),
-		Fields: []tui.ResultField{
-			{Label: "Family", Value: info.Family},
-			{Label: "Prefix", Value: fmt.Sprintf("/%d", info.Prefix)},
-			{Label: "First address", Value: info.First},
-			{Label: "Last address", Value: info.Last},
-			{Label: "Addresses", Value: info.Addresses, Tone: tui.ToneSuccess},
-		},
+		Fields:   fields,
 	}, nil
 }
 
@@ -576,7 +599,7 @@ func validateCIDR(value string) error {
 }
 
 func validatePrefixes(value string) error {
-	_, err := subnet.ParsePrefixes(value)
+	_, err := subnet.ParsePrefixSpecs(value)
 	return err
 }
 
