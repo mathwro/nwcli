@@ -2,7 +2,7 @@
 
 ## Project Purpose
 
-`nwcli` is a Go network toolbox for subnet planning and connectivity checks. It includes IPv4 subnet carving, dual-stack CIDR calculations, DNS diagnostics, ICMP ping, TCP, TLS, HTTP/S checks, bounded batch execution, structured output, and an interactive Bubble Tea terminal UI.
+`nwcli` is a Go network toolbox for subnet planning and connectivity checks. It includes IPv4 subnet carving (ordered or VLSM), dual-stack CIDR calculations, DNS diagnostics, dual-stack ICMP ping, ICMP traceroute, single/multi-port TCP, TLS, HTTP/S phase-timing checks, local interface inspection, bounded batch execution, structured output, shell completions, and an interactive Bubble Tea terminal UI.
 
 ## Commands
 
@@ -21,7 +21,7 @@
 - `internal/subnet/` contains deterministic subnet allocation and dual-stack CIDR calculations.
 - `internal/checks/` contains network checks and bounded result aggregation.
 - `internal/selfupdate/` contains the Go-install self-update operation.
-- `internal/tui/` contains Bubble Tea models, prompts, menus, progress UI, and structured result rendering.
+- `internal/tui/` contains Bubble Tea models, menus, forms, progress UI, and structured result rendering.
 
 ## Terminal UI Guidelines
 
@@ -32,8 +32,8 @@
 - Put result details in the shared viewport and preserve responsive resizing. Do not create action-specific screen models when the structured result renderer can express the content.
 - Reserve bespoke visuals for data with spatial meaning. Subnet carving uses the proportional address-space rail, color-keyed numbered allocations, explicit endpoints, address counts, and a visibly distinct available range.
 - Never rely on color alone. Pair state colors with text or glyphs, and pair allocation colors with stable indices, CIDRs, ranges, and counts.
-- Show examples as placeholders instead of pre-populated editable text. Untouched text fields submit their placeholders as values; edited fields submit their current content, including an explicitly cleared blank. Render boolean values as keyboard-operable toggles rather than asking users to type `true` or `false`. Conditionally hide and skip validation for fields that do not apply to the selected mode.
-- Use existing Bubbles components for lists, text input, viewports, and progress. Keep the established keys: arrows or `j`/`k` navigate, `/` filters, `enter` selects or runs, arrows or `space` operate toggles, `s` stops a running check into its result screen, `c` copies results, `esc` goes back or stops a running check, and `ctrl+c` quits.
+- Show examples as placeholders instead of pre-populated editable text. Untouched text fields submit their placeholders as values; edited fields submit their current content, including an explicitly cleared blank. Render boolean values as keyboard-operable toggles and bounded enum choices as `Field.Options` selectors rather than asking users to type raw flags. Conditionally hide and skip validation for fields that do not apply to the selected mode.
+- Use existing Bubbles components for lists, text input, viewports, and progress, and render all screens through the width-bounded `renderPanel` helper so outer frame width stays constant across transitions. Keep the established keys: arrows or `j`/`k` navigate, `tab`/`shift+tab` cycle fields, `/` filters, `enter` selects or runs, arrows or `space` operate toggles/selectors, `s` stops a running check into its result screen, `r` re-runs the current check, `e` reopens the form with preserved inputs, `c` copies results, `esc` goes back or stops a running check, and `ctrl+c` quits.
 - Keep errors actionable and in context. Preserve any partial structured result, label the screen `NEEDS ATTENTION`, and explain the concrete failure instead of showing a generic error state.
 - Test observable hierarchy and interaction rather than ANSI escape sequences. Visual changes also require a PTY smoke check at a practical terminal size.
 
