@@ -32,18 +32,10 @@ func newTLSCommand() *cobra.Command {
 			}
 			result := tlsCheck(cmd.Context(), checks.TLSOptions{Address: args[0], ServerName: serverName, Timeout: timeout, WarnBefore: warnBefore})
 			runErr := tlsResultError(result)
-			format, err := cmd.Root().PersistentFlags().GetString("output")
-			if err != nil {
-				return err
-			}
-			if format == "json" {
-				if err := writeJSONOutput(cmd.OutOrStdout(), "tls", tlsOutput(result), runErr); err != nil {
-					return err
-				}
-			} else {
-				renderTLS(cmd.OutOrStdout(), result)
-			}
-			return runErr
+			return emitCommandResult(cmd, "tls", tlsOutput(result), runErr, func(w io.Writer) error {
+				renderTLS(w, result)
+				return nil
+			})
 		},
 	}
 	cmd.Flags().StringVar(&serverName, "server-name", "", "TLS server name for SNI and certificate verification")
@@ -65,6 +57,9 @@ func parseExtendedDuration(raw string) (time.Duration, error) {
 
 func tlsResultError(result checks.TLSResult) error {
 	if result.Err != nil {
+		if result.Reachable {
+			return newCommandError(exitUnhealthy, result.Err)
+		}
 		return newCommandError(exitUnreachable, result.Err)
 	}
 	if result.ExpiringSoon {
@@ -75,11 +70,16 @@ func tlsResultError(result checks.TLSResult) error {
 
 func renderTLS(w io.Writer, result checks.TLSResult) {
 	fmt.Fprintf(w, "Address: %s\nServer name: %s\nLatency: %s\n", result.Address, result.ServerName, result.Latency.Round(time.Millisecond))
-	if result.Err != nil {
-		fmt.Fprintf(w, "Reachable: false\nVerified: false\nError: %v\n", result.Err)
-		return
+	fmt.Fprintf(w, "Reachable: %t\nVerified: %t\n", result.Reachable, result.Verified)
+	if result.Version != "" {
+		fmt.Fprintf(w, "Version: %s\nCipher: %s\n", result.Version, result.CipherSuite)
 	}
-	fmt.Fprintf(w, "Reachable: %t\nVerified: %t\nVersion: %s\nCipher: %s\nExpiring soon: %t\n", result.Reachable, result.Verified, result.Version, result.CipherSuite, result.ExpiringSoon)
+	if result.Verified || len(result.Certificates) > 0 {
+		fmt.Fprintf(w, "Expiring soon: %t\n", result.ExpiringSoon)
+	}
+	if result.Err != nil {
+		fmt.Fprintf(w, "Error: %v\n", result.Err)
+	}
 	for i, certificate := range result.Certificates {
 		fmt.Fprintf(w, "\nCertificate %d:\nSubject: %s\nIssuer: %s\n", i+1, certificate.Subject, certificate.Issuer)
 		if len(certificate.DNSNames) > 0 {

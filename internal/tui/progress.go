@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -34,7 +33,11 @@ type ProgressModel struct {
 }
 
 func NewProgressModel(title string) ProgressModel {
-	bar := progress.New(progress.WithWidth(32))
+	return NewProgressModelWithWidth(title, 36)
+}
+
+func NewProgressModelWithWidth(title string, width int) ProgressModel {
+	bar := progress.New(progress.WithWidth(max(16, width)))
 	spin := spinner.New()
 	return ProgressModel{title: title, bar: bar, spinner: spin}
 }
@@ -72,7 +75,8 @@ func (m ProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m ProgressModel) View() tea.View {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n\n", m.title)
+	b.WriteString(titleStyle.Render(m.title))
+	b.WriteString("\n\n")
 	if !m.done {
 		fmt.Fprintf(&b, "%s %s\n", m.spinner.View(), resultToneStyle(m.tone).Render(m.label))
 	} else if m.err != nil {
@@ -91,46 +95,4 @@ func (m ProgressModel) View() tea.View {
 		b.WriteByte('\n')
 	}
 	return tea.NewView(b.String())
-}
-
-type progressRunnerModel struct {
-	ProgressModel
-	events <-chan ProgressEvent
-}
-
-func RunProgress(ctx context.Context, title string, events <-chan ProgressEvent) error {
-	if events == nil {
-		return nil
-	}
-	model := progressRunnerModel{ProgressModel: NewProgressModel(title), events: events}
-	_, err := tea.NewProgram(model, tea.WithContext(ctx)).Run()
-	return err
-}
-
-func (m progressRunnerModel) Init() tea.Cmd {
-	return waitProgressEvent(m.events)
-}
-
-func (m progressRunnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	updated, cmd := m.ProgressModel.Update(msg)
-	m.ProgressModel = updated.(ProgressModel)
-	if m.done {
-		return m, cmd
-	}
-	if _, ok := msg.(ProgressEvent); ok {
-		return m, waitProgressEvent(m.events)
-	}
-	return m, cmd
-}
-
-func (m progressRunnerModel) View() tea.View { return m.ProgressModel.View() }
-
-func waitProgressEvent(events <-chan ProgressEvent) tea.Cmd {
-	return func() tea.Msg {
-		event, ok := <-events
-		if !ok {
-			return ProgressEvent{Label: "complete", Current: 1, Total: 1, Done: true}
-		}
-		return event
-	}
 }

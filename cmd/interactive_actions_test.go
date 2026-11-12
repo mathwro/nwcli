@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/mathwro/nwcli/internal/checks"
 	"github.com/mathwro/nwcli/internal/tui"
@@ -42,9 +43,12 @@ func TestInteractiveActionsUseTogglesAndPlaceholders(t *testing.T) {
 	for _, action := range interactiveActions() {
 		for _, field := range action.Fields {
 			if field.Toggle {
-				if field.Name != "continuous" && field.Name != "tls" {
+				if field.Name != "continuous" && field.Name != "tls" && field.Name != "follow_redirects" && field.Name != "sort" && field.Name != "all" {
 					t.Fatalf("unexpected toggle %q on action %q", field.Name, action.Title)
 				}
+				continue
+			}
+			if len(field.Options) > 0 {
 				continue
 			}
 			if field.Default != "" {
@@ -126,6 +130,10 @@ func TestInteractiveContinuousPingReportsLiveLoss(t *testing.T) {
 	original := continuousPingCheck
 	t.Cleanup(func() { continuousPingCheck = original })
 	continuousPingCheck = func(_ context.Context, opts checks.PingOptions) (checks.PingSummary, error) {
+		opts.OnUpdate(checks.PingUpdate{
+			Attempt: checks.PingAttempt{Seq: 1, Latency: 9 * time.Millisecond},
+			Summary: checks.PingSummary{Sent: 1, Received: 1},
+		})
 		summary := checks.PingSummary{Sent: 4, Received: 3, LossPercent: 25}
 		opts.OnUpdate(checks.PingUpdate{
 			Attempt: checks.PingAttempt{Seq: 4, Err: context.DeadlineExceeded},
@@ -134,7 +142,7 @@ func TestInteractiveContinuousPingReportsLiveLoss(t *testing.T) {
 		return summary, nil
 	}
 	var events []tui.ProgressEvent
-	_, err := runInteractivePing(context.Background(), map[string]string{
+	result, err := runInteractivePing(context.Background(), map[string]string{
 		"host":       "127.0.0.1",
 		"timeout":    "1s",
 		"continuous": "true",
@@ -144,15 +152,15 @@ func TestInteractiveContinuousPingReportsLiveLoss(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runInteractivePing returned error: %v", err)
 	}
-	if len(events) != 1 {
-		t.Fatalf("len(events) = %d, want 1", len(events))
+	if len(events) != 2 {
+		t.Fatalf("len(events) = %d, want 2", len(events))
 	}
-	event := events[0]
+	event := events[1]
 	if event.Total != 0 || event.Current != 4 || event.Tone != tui.ToneDanger {
 		t.Fatalf("event = %#v", event)
 	}
-	if event.Label == "" || len(event.Fields) != 4 || event.Fields[2].Label != "Dropped" || event.Fields[2].Value != "1" || event.Fields[3].Value != "25.0%" {
-		t.Fatalf("event fields = %#v", event)
+	if len(result.Sections) == 0 || len(result.Sections[0].Lines) != 2 {
+		t.Fatalf("expected continuous ping result to preserve attempt history, got sections=%#v", result.Sections)
 	}
 }
 

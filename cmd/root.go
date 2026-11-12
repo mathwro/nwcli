@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -25,10 +26,12 @@ func NewRootCommand(menuRunner func(context.Context) error) *cobra.Command {
 	}
 	var outputFormat string
 	root := &cobra.Command{
-		Use:     "nwcli",
-		Short:   "Network toolbox for subnet planning and connectivity checks",
-		Long:    "nwcli is a network toolbox for subnet planning, DNS diagnostics, and connectivity checks.",
-		Version: version.String(),
+		Use:           "nwcli",
+		Short:         "Network toolbox for subnet planning and connectivity checks",
+		Long:          "nwcli is a network toolbox for subnet planning, DNS diagnostics, and connectivity checks.",
+		Version:       version.String(),
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		PersistentPreRunE: func(*cobra.Command, []string) error {
 			return validateOutputFormat(outputFormat)
 		},
@@ -38,17 +41,53 @@ func NewRootCommand(menuRunner func(context.Context) error) *cobra.Command {
 	}
 	root.SetVersionTemplate("{{.Version}}\n")
 	root.PersistentFlags().StringVar(&outputFormat, "output", "text", "output format: text or json")
-	root.AddCommand(newSubnetCommand(), newPingCommand(), newHTTPCommand(), newDNSCommand(), newTCPCommand(), newTLSCommand(), newBatchCommand(), newUpdateCommand())
+	_ = root.RegisterFlagCompletionFunc("output", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+		return []string{"text", "json"}, cobra.ShellCompDirectiveNoFileComp
+	})
+	root.AddCommand(
+		newSubnetCommand(),
+		newPingCommand(),
+		newTraceCommand(),
+		newHTTPCommand(),
+		newDNSCommand(),
+		newTCPCommand(),
+		newTLSCommand(),
+		newInterfacesCommand(),
+		newBatchCommand(),
+		newUpdateCommand(),
+		newCompletionCommand(),
+	)
 	return root
 }
 
 func Execute() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	if err := NewRootCommand(runInteractiveMenu).ExecuteContext(ctx); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(ExitCode(err))
+	if code := runCLI(ctx, os.Args[1:], os.Stdout, os.Stderr, runInteractiveMenu); code != 0 {
+		os.Exit(code)
 	}
+}
+
+func runCLI(ctx context.Context, args []string, stdout, stderr io.Writer, menuRunner func(context.Context) error) int {
+	root := NewRootCommand(menuRunner)
+	root.SetOut(stdout)
+	root.SetErr(stderr)
+	root.SetArgs(args)
+	err := root.ExecuteContext(ctx)
+	if err == nil {
+		return 0
+	}
+	if isEmittedJSONError(err) {
+		return ExitCode(err)
+	}
+	format, flagErr := root.PersistentFlags().GetString("output")
+	if flagErr == nil && format == "json" {
+		if writeErr := writeJSONOutput(stdout, root.Name(), nil, err); writeErr == nil {
+			return ExitCode(err)
+		}
+	}
+	fmt.Fprintln(stderr, err)
+	return ExitCode(err)
 }
 
 func runInteractiveMenu(ctx context.Context) error {
@@ -62,15 +101,41 @@ func interactiveActions() []tui.Action {
 			Description: "Allocate ordered IPv4 child networks and see remaining space",
 			Fields: []tui.Field{
 				{Name: "cidr", Label: "Parent CIDR", Placeholder: "10.0.0.0/24", Validate: validateCIDR},
-				{Name: "sizes", Label: "Child prefixes", Placeholder: "27,27,28,28", Validate: validatePrefixes},
+				{Name: "sizes", Label: "Child prefixes", Placeholder: "web:27,app:27,db:28,mgmt:28", Validate: validatePrefixes},
+				{Name: "sort", Label: "Sort largest-first (VLSM)", Default: "true", Toggle: true, Validate: validateBoolean},
 			},
 			Run: runInteractiveSubnet,
 		},
 		{
 			Title:       "CIDR inspect",
-			Description: "Show normalized range, family, prefix, and address count",
+			Description: "Inspect, test containment/overlap, split, or summarize CIDRs",
 			Fields: []tui.Field{
-				{Name: "cidr", Label: "CIDR", Placeholder: "10.0.0.0/24", Validate: validateCIDR},
+				{Name: "mode", Label: "Operation", Default: "inspect", Options: []string{"inspect", "contains", "overlap", "split", "summarize"}},
+				{
+					Name: "cidr", Label: "CIDR", Placeholder: "10.0.0.0/24",
+					Visible:  func(v map[string]string) bool { return v["mode"] != "summarize" },
+					Validate: validateCIDR,
+				},
+				{
+					Name: "address", Label: "IP address", Placeholder: "10.0.0.42",
+					Visible:  func(v map[string]string) bool { return v["mode"] == "contains" },
+					Validate: validateIPAddress,
+				},
+				{
+					Name: "cidr_b", Label: "Second CIDR", Placeholder: "10.0.0.128/25",
+					Visible:  func(v map[string]string) bool { return v["mode"] == "overlap" },
+					Validate: validateCIDR,
+				},
+				{
+					Name: "prefix", Label: "Child prefix", Placeholder: "26",
+					Visible:  func(v map[string]string) bool { return v["mode"] == "split" },
+					Validate: validatePositiveInteger,
+				},
+				{
+					Name: "cidrs", Label: "CIDR list", Placeholder: "10.0.0.0/25, 10.0.0.128/25",
+					Visible:  func(v map[string]string) bool { return v["mode"] == "summarize" },
+					Validate: validateCIDRList,
+				},
 			},
 			Run: runInteractiveCIDR,
 		},
@@ -90,6 +155,16 @@ func interactiveActions() []tui.Action {
 			RunProgress: runInteractivePing,
 		},
 		{
+			Title:       "Trace route",
+			Description: "Trace hop-by-hop ICMP path and latency to a host",
+			Fields: []tui.Field{
+				{Name: "host", Label: "Host", Placeholder: "1.1.1.1", Validate: validateRequired},
+				{Name: "max_hops", Label: "Max hops", Placeholder: "20", Validate: validateHopLimit},
+				{Name: "timeout", Label: "Hop timeout", Placeholder: "1s", Validate: validateDuration},
+			},
+			RunProgress: runInteractiveTrace,
+		},
+		{
 			Title:       "DNS lookup",
 			Description: "Query A, AAAA, CNAME, MX, NS, TXT, or PTR records",
 			Fields: []tui.Field{
@@ -102,9 +177,9 @@ func interactiveActions() []tui.Action {
 		},
 		{
 			Title:       "TCP connect",
-			Description: "Measure transport-level reachability to a host and port",
+			Description: "Measure transport reachability to a port, list, or range",
 			Fields: []tui.Field{
-				{Name: "address", Label: "Address", Placeholder: "example.com:443", Validate: validateHostPort},
+				{Name: "address", Label: "Address / ports", Placeholder: "example.com:80,443", Validate: validateTCPTarget},
 				{Name: "timeout", Label: "Timeout", Placeholder: "2s", Validate: validateDuration},
 			},
 			RunProgress: runInteractiveTCP,
@@ -128,20 +203,36 @@ func interactiveActions() []tui.Action {
 				{Name: "port", Label: "Port", Placeholder: "443", Validate: validatePort},
 				{Name: "tls", Label: "TLS", Default: "true", Toggle: true, Validate: validateBoolean},
 				{Name: "path", Label: "Path", Placeholder: "/"},
+				{Name: "follow_redirects", Label: "Follow redirects", Default: "false", Toggle: true, Validate: validateBoolean},
 				{Name: "timeout", Label: "Timeout", Placeholder: "2s", Validate: validateDuration},
 			},
 			RunProgress: runInteractiveHTTP,
+		},
+		{
+			Title:       "Local interfaces",
+			Description: "Inspect local NICs, MTU, MAC, flags, and assigned CIDRs",
+			Fields: []tui.Field{
+				{Name: "all", Label: "Include down", Default: "false", Toggle: true, Validate: validateBoolean},
+			},
+			Run: runInteractiveInterfaces,
 		},
 		{Title: "Quit", Description: "Exit nwcli"},
 	}
 }
 
 func runInteractiveSubnet(_ context.Context, values map[string]string) (tui.Result, error) {
-	prefixes, err := subnet.ParsePrefixes(values["sizes"])
+	specs, err := subnet.ParsePrefixSpecs(values["sizes"])
 	if err != nil {
 		return tui.Result{}, err
 	}
-	plan, err := subnet.Plan(values["cidr"], prefixes)
+	sortVLSM := false
+	if values["sort"] != "" {
+		sortVLSM, err = strconv.ParseBool(values["sort"])
+		if err != nil {
+			return tui.Result{}, fmt.Errorf("invalid sort value %q: %w", values["sort"], err)
+		}
+	}
+	plan, err := subnet.PlanSpecs(values["cidr"], specs, sortVLSM)
 	if err != nil {
 		return tui.Result{}, err
 	}
@@ -152,9 +243,13 @@ func runInteractiveSubnet(_ context.Context, values map[string]string) (tui.Resu
 	segments := make([]tui.AllocationSegment, len(plan.Blocks))
 	var allocated uint64
 	for i, block := range plan.Blocks {
+		label := block.CIDR.String()
+		if block.Name != "" {
+			label = block.Name + "  " + label
+		}
 		segments[i] = tui.AllocationSegment{
 			Index:  block.Index,
-			Label:  block.CIDR.String(),
+			Label:  label,
 			Start:  block.First.String(),
 			End:    block.Last.String(),
 			Offset: uint64(block.StartOffset),
@@ -186,23 +281,213 @@ func runInteractiveSubnet(_ context.Context, values map[string]string) (tui.Resu
 }
 
 func runInteractiveCIDR(_ context.Context, values map[string]string) (tui.Result, error) {
-	info, err := subnet.InspectCIDR(values["cidr"])
-	if err != nil {
-		return tui.Result{}, err
+	mode := values["mode"]
+	if mode == "" {
+		mode = "inspect"
 	}
-	var out bytes.Buffer
-	fmt.Fprintf(&out, "CIDR: %s\nFamily: %s\nPrefix: /%d\nFirst: %s\nLast: %s\nAddresses: %s\n", info.CIDR, info.Family, info.Prefix, info.First, info.Last, info.Addresses)
-	return tui.Result{
-		Headline: info.CIDR,
-		Summary:  "Normalized network range",
-		Text:     out.String(),
-		Fields: []tui.ResultField{
+	switch mode {
+	case "contains":
+		contains, err := subnet.ContainsCIDR(values["cidr"], values["address"])
+		if err != nil {
+			return tui.Result{}, err
+		}
+		verdict := "Address is outside CIDR"
+		if contains {
+			verdict = "Address is inside CIDR"
+		}
+		return tui.Result{
+			Headline: fmt.Sprintf("%s  ∈  %s", values["address"], values["cidr"]),
+			Summary:  verdict,
+			Text:     fmt.Sprintf("%t\n", contains),
+			Fields: []tui.ResultField{
+				{Label: "CIDR", Value: values["cidr"]},
+				{Label: "Address", Value: values["address"]},
+				boolResultField("Contains", contains),
+			},
+		}, nil
+	case "overlap":
+		overlap, err := subnet.OverlapsCIDR(values["cidr"], values["cidr_b"])
+		if err != nil {
+			return tui.Result{}, err
+		}
+		summary := "Ranges are disjoint"
+		if overlap {
+			summary = "Ranges overlap"
+		}
+		return tui.Result{
+			Headline: fmt.Sprintf("%s  ∩  %s", values["cidr"], values["cidr_b"]),
+			Summary:  summary,
+			Text:     fmt.Sprintf("%t\n", overlap),
+			Fields: []tui.ResultField{
+				{Label: "First CIDR", Value: values["cidr"]},
+				{Label: "Second CIDR", Value: values["cidr_b"]},
+				{Label: "Overlaps", Value: strconv.FormatBool(overlap), Tone: map[bool]tui.ResultTone{true: tui.ToneWarning, false: tui.ToneSuccess}[overlap]},
+			},
+		}, nil
+	case "split":
+		childPrefix, err := strconv.Atoi(strings.TrimPrefix(strings.TrimSpace(values["prefix"]), "/"))
+		if err != nil {
+			return tui.Result{}, fmt.Errorf("invalid prefix %q: %w", values["prefix"], err)
+		}
+		children, err := subnet.SplitCIDR(values["cidr"], childPrefix)
+		if err != nil {
+			return tui.Result{}, err
+		}
+		return tui.Result{
+			Headline: values["cidr"],
+			Summary:  fmt.Sprintf("Split into %d /%d prefixes", len(children), childPrefix),
+			Text:     strings.Join(children, "\n") + "\n",
+			Fields: []tui.ResultField{
+				{Label: "Parent", Value: values["cidr"]},
+				{Label: "Child prefix", Value: fmt.Sprintf("/%d", childPrefix)},
+				{Label: "Count", Value: strconv.Itoa(len(children)), Tone: tui.ToneSuccess},
+			},
+			Sections: []tui.ResultSection{{Title: "Child prefixes", Lines: children}},
+		}, nil
+	case "summarize":
+		inputs := splitCIDRList(values["cidrs"])
+		prefixes, err := subnet.SummarizeCIDRs(inputs)
+		if err != nil {
+			return tui.Result{}, err
+		}
+		return tui.Result{
+			Headline: fmt.Sprintf("%d → %d prefixes", len(inputs), len(prefixes)),
+			Summary:  "Collapsed adjacent and contained ranges",
+			Text:     strings.Join(prefixes, "\n") + "\n",
+			Fields: []tui.ResultField{
+				{Label: "Input count", Value: strconv.Itoa(len(inputs))},
+				{Label: "Summary count", Value: strconv.Itoa(len(prefixes)), Tone: tui.ToneSuccess},
+			},
+			Sections: []tui.ResultSection{{Title: "Summary prefixes", Lines: prefixes}},
+		}, nil
+	default:
+		info, err := subnet.InspectCIDR(values["cidr"])
+		if err != nil {
+			return tui.Result{}, err
+		}
+		var out bytes.Buffer
+		_ = renderCIDRInfo(&out, info)
+		fields := []tui.ResultField{
 			{Label: "Family", Value: info.Family},
 			{Label: "Prefix", Value: fmt.Sprintf("/%d", info.Prefix)},
-			{Label: "First address", Value: info.First},
-			{Label: "Last address", Value: info.Last},
-			{Label: "Addresses", Value: info.Addresses, Tone: tui.ToneSuccess},
+			{Label: "Scope", Value: info.Scope},
+		}
+		if info.Netmask != "" {
+			fields = append(fields,
+				tui.ResultField{Label: "Netmask", Value: info.Netmask},
+				tui.ResultField{Label: "Wildcard", Value: info.Wildcard},
+			)
+		}
+		fields = append(fields,
+			tui.ResultField{Label: "First address", Value: info.First},
+			tui.ResultField{Label: "Last address", Value: info.Last},
+			tui.ResultField{Label: "Usable range", Value: fmt.Sprintf("%s → %s (%s)", info.UsableFirst, info.UsableLast, info.UsableAddresses)},
+			tui.ResultField{Label: "Addresses", Value: info.Addresses, Tone: tui.ToneSuccess},
+		)
+		return tui.Result{
+			Headline: info.CIDR,
+			Summary:  fmt.Sprintf("%s · %s", info.Family, info.Scope),
+			Text:     out.String(),
+			Fields:   fields,
+		}, nil
+	}
+}
+
+func runInteractiveTrace(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (tui.Result, error) {
+	maxHops, err := strconv.Atoi(values["max_hops"])
+	if err != nil {
+		return tui.Result{}, fmt.Errorf("invalid max_hops %q: %w", values["max_hops"], err)
+	}
+	timeout, err := time.ParseDuration(values["timeout"])
+	if err != nil {
+		return tui.Result{}, fmt.Errorf("invalid timeout %q: %w", values["timeout"], err)
+	}
+	result, checkErr := traceCheck(ctx, checks.TraceOptions{
+		Host:    values["host"],
+		MaxHops: maxHops,
+		Timeout: timeout,
+		OnUpdate: func(hop checks.TraceHop) {
+			if report == nil {
+				return
+			}
+			label := fmt.Sprintf("Hop %d · %s (%s)", hop.TTL, hop.Address, hop.Latency.Round(time.Millisecond))
+			tone := tui.ToneSuccess
+			if hop.Timeout {
+				label = fmt.Sprintf("Hop %d · * (timed out)", hop.TTL)
+				tone = tui.ToneWarning
+			} else if hop.Err != nil {
+				label = fmt.Sprintf("Hop %d · %v", hop.TTL, hop.Err)
+				tone = tui.ToneDanger
+			}
+			report(tui.ProgressEvent{Label: label, Current: hop.TTL, Total: maxHops, Tone: tone})
 		},
+	})
+	var out bytes.Buffer
+	renderTrace(&out, result)
+	hopLines := make([]string, len(result.Hops))
+	for i, hop := range result.Hops {
+		if hop.Timeout {
+			hopLines[i] = fmt.Sprintf("%2d  *", hop.TTL)
+		} else if hop.Err != nil {
+			hopLines[i] = fmt.Sprintf("%2d  %v", hop.TTL, hop.Err)
+		} else {
+			hopLines[i] = fmt.Sprintf("%2d  %-36s %s", hop.TTL, hop.Address, hop.Latency.Round(time.Microsecond))
+		}
+	}
+	summary := fmt.Sprintf("Stopped after %d hops", len(result.Hops))
+	if result.Reached {
+		summary = fmt.Sprintf("Destination reached in %d hops", len(result.Hops))
+	}
+	headline := values["host"]
+	if result.Target != "" && result.Target != values["host"] {
+		headline = fmt.Sprintf("%s (%s)", values["host"], result.Target)
+	}
+	return tui.Result{
+		Headline: headline,
+		Summary:  summary,
+		Text:     out.String(),
+		Fields: []tui.ResultField{
+			boolResultField("Reached", result.Reached),
+			{Label: "Hops", Value: strconv.Itoa(len(result.Hops))},
+			{Label: "Target IP", Value: result.Target},
+		},
+		Sections: []tui.ResultSection{{Title: "Route hops", Lines: hopLines}},
+	}, pingResultError(checkErr)
+}
+
+func runInteractiveInterfaces(_ context.Context, values map[string]string) (tui.Result, error) {
+	includeAll := values["all"] == "true"
+	items, err := listInterfaces(includeAll)
+	if err != nil {
+		return tui.Result{}, newCommandError(exitUnreachable, err)
+	}
+	var out bytes.Buffer
+	_ = renderInterfaces(&out, items)
+	sections := make([]tui.ResultSection, 0, len(items))
+	totalAddrs := 0
+	for _, item := range items {
+		totalAddrs += len(item.Addresses)
+		mac := item.HardwareAddr
+		if mac == "" {
+			mac = "none"
+		}
+		lines := []string{fmt.Sprintf("mtu %d · mac %s · %s", item.MTU, mac, strings.Join(item.Flags, ","))}
+		if len(item.Addresses) == 0 {
+			lines = append(lines, "(no addresses)")
+		} else {
+			lines = append(lines, item.Addresses...)
+		}
+		sections = append(sections, tui.ResultSection{Title: item.Name, Lines: lines})
+	}
+	return tui.Result{
+		Headline: fmt.Sprintf("%d interfaces", len(items)),
+		Summary:  fmt.Sprintf("%d assigned addresses", totalAddrs),
+		Text:     out.String(),
+		Fields: []tui.ResultField{
+			{Label: "Interfaces", Value: strconv.Itoa(len(items)), Tone: tui.ToneSuccess},
+			{Label: "Addresses", Value: strconv.Itoa(totalAddrs)},
+		},
+		Sections: sections,
 	}, nil
 }
 
@@ -226,11 +511,21 @@ func runInteractivePing(ctx context.Context, values map[string]string, report fu
 	if err != nil {
 		return tui.Result{}, fmt.Errorf("invalid timeout %q: %w", values["timeout"], err)
 	}
+	var recorded []checks.PingAttempt
+	const maxRecordedAttempts = 200
 	options := checks.PingOptions{
 		Host:    values["host"],
 		Count:   count,
 		Timeout: timeout,
 		OnUpdate: func(update checks.PingUpdate) {
+			if continuous {
+				if len(recorded) >= maxRecordedAttempts {
+					copy(recorded, recorded[1:])
+					recorded[len(recorded)-1] = update.Attempt
+				} else {
+					recorded = append(recorded, update.Attempt)
+				}
+			}
 			if report != nil {
 				report(pingProgressEvent(update, count, continuous))
 			}
@@ -241,6 +536,7 @@ func runInteractivePing(ctx context.Context, values map[string]string, report fu
 	var checkErr error
 	if continuous {
 		summary, checkErr = continuousPingCheck(ctx, options)
+		attempts = recorded
 	} else {
 		attempts, summary, checkErr = pingCheck(ctx, options)
 	}
@@ -322,12 +618,19 @@ func runInteractiveHTTP(ctx context.Context, values map[string]string, report fu
 	if err != nil {
 		return tui.Result{}, fmt.Errorf("invalid tls value %q: %w", values["tls"], err)
 	}
+	followRedirects := false
+	if values["follow_redirects"] != "" {
+		followRedirects, err = strconv.ParseBool(values["follow_redirects"])
+		if err != nil {
+			return tui.Result{}, fmt.Errorf("invalid follow_redirects value %q: %w", values["follow_redirects"], err)
+		}
+	}
 	timeout, err := time.ParseDuration(values["timeout"])
 	if err != nil {
 		return tui.Result{}, fmt.Errorf("invalid timeout %q: %w", values["timeout"], err)
 	}
 	reportSingle(report, "Requesting endpoint", false)
-	checkResult := httpCheck(ctx, nil, checks.HTTPOptions{Host: values["host"], Port: port, TLS: useTLS, Path: values["path"], Timeout: timeout})
+	checkResult := httpCheck(ctx, nil, checks.HTTPOptions{Host: values["host"], Port: port, TLS: useTLS, Path: values["path"], FollowRedirects: followRedirects, Timeout: timeout})
 	reportSingle(report, "HTTP check complete", true)
 	var out bytes.Buffer
 	renderHTTP(&out, checkResult)
@@ -341,17 +644,54 @@ func runInteractiveHTTP(ctx context.Context, values map[string]string, report fu
 	if checkResult.Reachable {
 		summary = fmt.Sprintf("Endpoint responded with HTTP %d", checkResult.StatusCode)
 	}
+	fields := []tui.ResultField{
+		{Label: "Status", Value: strconv.Itoa(checkResult.StatusCode), Tone: statusTone},
+		{Label: "Latency", Value: checkResult.Latency.Round(time.Millisecond).String()},
+		boolResultField("Reachable", checkResult.Reachable),
+		boolResultField("Healthy", checkResult.Healthy),
+	}
+	if checkResult.Location != "" {
+		fields = append(fields, tui.ResultField{Label: "Location", Value: checkResult.Location})
+	}
+	var sections []tui.ResultSection
+	if timingLines := formatHTTPTimingLines(checkResult.Timings); len(timingLines) > 0 {
+		sections = append(sections, tui.ResultSection{Title: "Phase timings", Lines: timingLines})
+	}
 	return tui.Result{
 		Headline: checkResult.URL,
 		Summary:  summary,
 		Text:     out.String(),
-		Fields: []tui.ResultField{
-			{Label: "Status", Value: strconv.Itoa(checkResult.StatusCode), Tone: statusTone},
-			{Label: "Latency", Value: checkResult.Latency.Round(time.Millisecond).String()},
-			boolResultField("Reachable", checkResult.Reachable),
-			boolResultField("Healthy", checkResult.Healthy),
-		},
+		Fields:   fields,
+		Sections: sections,
 	}, httpResultError(checkResult)
+}
+
+func formatHTTPTimingLines(timings checks.HTTPTimings) []string {
+	total := timings.Total
+	if total <= 0 {
+		return nil
+	}
+	phases := []struct {
+		label string
+		d     time.Duration
+	}{
+		{"DNS lookup", timings.DNSLookup},
+		{"TCP connect", timings.TCPConnect},
+		{"TLS handshake", timings.TLSHandshake},
+		{"Server TTFB", timings.TTFB},
+	}
+	var lines []string
+	const barWidth = 20
+	for _, phase := range phases {
+		if phase.d <= 0 {
+			continue
+		}
+		filled := min(barWidth, max(1, int((phase.d*barWidth)/total)))
+		bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
+		lines = append(lines, fmt.Sprintf("%-14s %s  %s", phase.label, bar, phase.d.Round(time.Microsecond)))
+	}
+	lines = append(lines, fmt.Sprintf("%-14s %s  %s", "Total", strings.Repeat("─", barWidth), total.Round(time.Microsecond)))
+	return lines
 }
 
 func runInteractiveDNS(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (tui.Result, error) {
@@ -387,26 +727,70 @@ func runInteractiveTCP(ctx context.Context, values map[string]string, report fun
 	if err != nil {
 		return tui.Result{}, err
 	}
-	reportSingle(report, "Opening TCP connection", false)
-	checkResult := tcpCheck(ctx, nil, checks.TCPOptions{Address: values["address"], Timeout: timeout})
-	reportSingle(report, "TCP check complete", true)
+	targets, err := checks.ExpandTCPTarget(values["address"])
+	if err != nil {
+		return tui.Result{}, err
+	}
+	if len(targets) == 1 {
+		reportSingle(report, "Opening TCP connection", false)
+		checkResult := tcpCheck(ctx, nil, checks.TCPOptions{Address: targets[0], Timeout: timeout})
+		reportSingle(report, "TCP check complete", true)
+		var out bytes.Buffer
+		renderTCP(&out, checkResult)
+		summary := "Connection failed"
+		if checkResult.Reachable {
+			summary = "Connection established"
+		}
+		return tui.Result{
+			Headline: checkResult.Address,
+			Summary:  summary,
+			Text:     out.String(),
+			Fields: []tui.ResultField{
+				boolResultField("Reachable", checkResult.Reachable),
+				{Label: "Latency", Value: checkResult.Latency.Round(time.Millisecond).String()},
+				{Label: "Remote", Value: checkResult.RemoteAddress},
+				{Label: "Local", Value: checkResult.LocalAddress},
+			},
+		}, tcpResultError(checkResult)
+	}
+	reportSingle(report, fmt.Sprintf("Scanning %d TCP ports", len(targets)), false)
+	batch := checks.RunBatch(ctx, targets, 8, func(runCtx context.Context, target string) checks.TCPResult {
+		return tcpCheck(runCtx, nil, checks.TCPOptions{Address: target, Timeout: timeout})
+	})
+	reportSingle(report, "TCP scan complete", true)
 	var out bytes.Buffer
-	renderTCP(&out, checkResult)
-	summary := "Connection failed"
-	if checkResult.Reachable {
-		summary = "Connection established"
+	lines := make([]string, len(batch))
+	openCount := 0
+	for i, item := range batch {
+		if item.Result.Reachable {
+			openCount++
+			fmt.Fprintf(&out, "%s reachable=true latency=%s\n", item.Item, item.Result.Latency.Round(time.Millisecond))
+			lines[i] = fmt.Sprintf("OPEN    %-22s %s", item.Item, item.Result.Latency.Round(time.Millisecond))
+		} else {
+			fmt.Fprintf(&out, "%s reachable=false latency=%s error=%v\n", item.Item, item.Result.Latency.Round(time.Millisecond), item.Result.Err)
+			lines[i] = fmt.Sprintf("CLOSED  %-22s %v", item.Item, item.Result.Err)
+		}
+	}
+	var runErr error
+	tone := tui.ToneSuccess
+	if openCount == 0 {
+		tone = tui.ToneDanger
+		runErr = newCommandError(exitUnreachable, fmt.Errorf("all %d TCP ports unreachable", len(batch)))
+	} else if openCount < len(batch) {
+		tone = tui.ToneWarning
+		runErr = newCommandError(exitUnhealthy, fmt.Errorf("%d of %d TCP ports unreachable", len(batch)-openCount, len(batch)))
 	}
 	return tui.Result{
-		Headline: checkResult.Address,
-		Summary:  summary,
+		Headline: values["address"],
+		Summary:  fmt.Sprintf("%d of %d ports reachable", openCount, len(batch)),
 		Text:     out.String(),
 		Fields: []tui.ResultField{
-			boolResultField("Reachable", checkResult.Reachable),
-			{Label: "Latency", Value: checkResult.Latency.Round(time.Millisecond).String()},
-			{Label: "Remote", Value: checkResult.RemoteAddress},
-			{Label: "Local", Value: checkResult.LocalAddress},
+			{Label: "Checked", Value: strconv.Itoa(len(batch))},
+			{Label: "Open", Value: strconv.Itoa(openCount), Tone: tone},
+			{Label: "Closed", Value: strconv.Itoa(len(batch) - openCount)},
 		},
-	}, tcpResultError(checkResult)
+		Sections: []tui.ResultSection{{Title: "Port results", Lines: lines}},
+	}, runErr
 }
 
 func runInteractiveTLS(ctx context.Context, values map[string]string, report func(tui.ProgressEvent)) (tui.Result, error) {
@@ -496,7 +880,7 @@ func validateCIDR(value string) error {
 }
 
 func validatePrefixes(value string) error {
-	_, err := subnet.ParsePrefixes(value)
+	_, err := subnet.ParsePrefixSpecs(value)
 	return err
 }
 
@@ -536,10 +920,52 @@ func validateHostPort(value string) error {
 	return nil
 }
 
+func validateTCPTarget(value string) error {
+	_, err := checks.ExpandTCPTarget(value)
+	return err
+}
+
 func validatePort(value string) error {
 	port, err := strconv.Atoi(value)
 	if err != nil || port < 1 || port > 65535 {
 		return fmt.Errorf("must be between 1 and 65535")
+	}
+	return nil
+}
+
+func validateIPAddress(value string) error {
+	if net.ParseIP(strings.TrimSpace(value)) == nil {
+		return fmt.Errorf("invalid IP address")
+	}
+	return nil
+}
+
+func splitCIDRList(raw string) []string {
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t'
+	})
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
+func validateCIDRList(value string) error {
+	items := splitCIDRList(value)
+	if len(items) == 0 {
+		return fmt.Errorf("enter at least one CIDR")
+	}
+	_, err := subnet.SummarizeCIDRs(items)
+	return err
+}
+
+func validateHopLimit(value string) error {
+	n, err := strconv.Atoi(value)
+	if err != nil || n < 1 || n > 64 {
+		return fmt.Errorf("must be between 1 and 64")
 	}
 	return nil
 }

@@ -4,14 +4,16 @@
 
 ## Features
 
-- IPv4 subnet carving with a visual allocation map.
-- IPv4 and IPv6 CIDR inspection, containment, overlap, splitting, and summarization.
-- DNS record diagnostics with optional resolver selection.
-- ICMP ping with finite summaries or continuous live packet-loss statistics, plus TCP, TLS certificate, and HTTP/S endpoint checks.
-- Bounded concurrent DNS, TCP, and TLS batch checks.
-- Versioned JSON output and stable automation exit codes.
-- Searchable Bubble Tea TUI with structured result summaries and scrollable details.
-- Direct self-update through the installed Go toolchain.
+- IPv4 subnet carving with named blocks, optional VLSM largest-first packing (`--sort`), and a visual allocation map.
+- IPv4 and IPv6 CIDR inspection (netmask, wildcard mask, usable host range, RFC scope), containment, overlap, splitting, and summarization.
+- DNS record diagnostics with optional resolver selection and accurate `CNAME` alias detection.
+- Dual-stack IPv4/IPv6 ICMP ping (finite or continuous live packet-loss stats) and hop-by-hop ICMP traceroute (`trace`).
+- Single-port, port-list, and port-range TCP checks, TLS certificate chain inspection (including unverified chain diagnostics), and HTTP/S endpoint checks with `httptrace` phase timing breakdowns.
+- Local network interface and CIDR snapshot (`interfaces` / `ip`).
+- Bounded concurrent DNS, TCP, TLS, HTTP/S, and Ping batch checks with `--file` / stdin (`-`) target lists.
+- Versioned JSON output, stable automation exit codes, and shell completions (`bash`, `zsh`, `fish`, `powershell`).
+- Searchable Bubble Tea TUI with structured result summaries, quick re-run (`r`), form editing (`e`), and clipboard copy (`c`).
+- Self-update through the Go toolchain with Homebrew/Scoop package-manager guards.
 
 ## Install
 
@@ -57,8 +59,10 @@ Keyboard shortcuts:
 - `↑`/`↓` or `k`/`j`: move in the menu.
 - `/`: filter the action list.
 - `enter`: select an action or run the current form.
-- `←`/`→` or `space`: switch boolean controls between `ON` and `OFF`.
+- `←`/`→` or `space`: switch boolean toggles (`ON`/`OFF`) or cycle multi-option selectors.
 - `s`: stop a running check and open its result screen.
+- `r`: immediately re-run the current check from its result screen.
+- `e`: reopen the form from a result screen with your previous inputs preserved.
 - `c`: copy the complete test output from a result screen.
 - `esc`: go back from forms and results; while a check runs, stop it and open its results.
 - `q`: quit outside a form; inside a text field it is normal input.
@@ -68,10 +72,11 @@ Forms show examples as placeholders rather than pre-populated text, so typing st
 
 ### Subnet carving
 
-Carve a parent IPv4 CIDR into child prefixes in the order provided:
+Carve a parent IPv4 CIDR into child prefixes in the order provided, or pass `--sort` for automatic VLSM largest-first packing and optional `name:prefix` labels:
 
 ```bash
 nwcli subnet carve --cidr 10.0.0.0/24 --sizes 27,27,28,28
+nwcli subnet carve --cidr 10.0.0.0/24 --sizes db:28,web:27,mgmt:28 --sort
 ```
 
 Example output:
@@ -90,7 +95,7 @@ Unused: 10.0.0.96 - 10.0.0.255  addresses: 160
 
 ### CIDR calculator
 
-Inspect or transform IPv4 and IPv6 CIDRs:
+Inspect (including IPv4 netmask/wildcard, usable host range, and RFC address scope) or transform IPv4 and IPv6 CIDRs:
 
 ```bash
 nwcli subnet inspect 10.0.0.37/24
@@ -112,28 +117,41 @@ Supported record types are `A`, `AAAA`, `CNAME`, `MX`, `NS`, `TXT`, and `PTR`.
 
 ### TCP connection check
 
-Measure transport-level reachability without changing the meaning of ICMP ping:
+Measure transport-level reachability to a single port, comma-separated port list, or port range:
 
 ```bash
 nwcli tcp example.com:443 --timeout 2s
+nwcli tcp example.com:80,443,8080-8085 --concurrency 8
 ```
 
 ### TLS inspection
 
-Verify TLS, inspect the certificate chain, and return unhealthy when the leaf certificate expires inside the warning window:
+Verify TLS, inspect the certificate chain (even when x509 verification fails, exiting `3` unhealthy vs `4` unreachable), and warn when the leaf certificate expires inside `--warn-before`:
 
 ```bash
 nwcli tls example.com:443 --server-name example.com --warn-before 30d
 ```
 
+### Traceroute & local interfaces
+
+Trace the hop-by-hop ICMP path to a target or inspect local interfaces and assigned CIDRs:
+
+```bash
+nwcli trace 1.1.1.1 --max-hops 20 --timeout 1s
+nwcli interfaces
+nwcli interfaces --all
+```
+
 ### Bounded batch checks
 
-Run DNS, TCP, or TLS checks concurrently while preserving input order:
+Run DNS, TCP, TLS, HTTP/S, or Ping checks concurrently from positional arguments or `--file` (`-` for stdin, `#` comments ignored) while preserving input order:
 
 ```bash
 nwcli batch dns one.example two.example --type A --concurrency 4
 nwcli batch tcp one.example:80 two.example:443 --concurrency 4
 nwcli batch tls one.example:443 two.example:443 --concurrency 4
+nwcli batch http https://one.example/health https://two.example/ready --file targets.txt
+nwcli batch ping 1.1.1.1 8.8.8.8 --count 2
 ```
 
 ### Structured output and exit codes
@@ -160,20 +178,21 @@ Check an HTTP/S endpoint:
 
 ```bash
 nwcli http example.com --port 443 --tls --path / --timeout 2s
+nwcli http example.com --tls --follow-redirects
 ```
 
-A completed HTTP response is reachable. Status codes `200` through `399` are healthy; other status codes are reachable but unhealthy.
+A completed HTTP response is reachable and reports DNS, TCP, TLS, TTFB, and total phase timings. Status codes `200` through `399` are healthy; redirects are reported directly unless `--follow-redirects` (`-L`) is passed.
 
 ### Ping check
 
-Run a finite ICMP ping check:
+Run a finite IPv4 or IPv6 ICMP ping check:
 
 ```bash
-nwcli ping 127.0.0.1 --count 4 --timeout 1s
+nwcli ping 127.0.0.1 --count 4 --interval 1s --timeout 1s
 ```
 
-Stream replies, drops, cumulative counts, and packet-loss percentage until interrupted:
 
+Stream replies, drops, cumulative counts, and packet-loss percentage until interrupted:
 ```bash
 nwcli ping 127.0.0.1 --continuous --timeout 1s
 # Short form:
@@ -192,7 +211,18 @@ Update `nwcli` to the latest version available from its Go module:
 nwcli update
 ```
 
-This direct CLI command runs `go install github.com/mathwro/nwcli@latest`, so the Go toolchain must be installed and available on `PATH`. It does not appear in the interactive TUI.
+This direct CLI command runs `go install github.com/mathwro/nwcli@latest` when `go` is on `PATH`. If `nwcli` was installed via Homebrew or Scoop, `nwcli update` detects the managed path and prints the matching `brew upgrade` or `scoop update` command instead of creating a duplicate binary.
+
+### Shell completions
+
+Generate tab-completion scripts for your shell:
+
+```bash
+nwcli completion bash
+nwcli completion zsh
+nwcli completion fish
+nwcli completion powershell
+```
 
 ## Release process
 

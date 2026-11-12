@@ -52,3 +52,36 @@ func TestInstallLatestWrapsGoInstallFailure(t *testing.T) {
 		t.Fatalf("error = %q, want update context", err)
 	}
 }
+
+func TestInstallLatestRejectsHomebrewAndScoopManagedBinaries(t *testing.T) {
+	for _, tc := range []struct {
+		exe  string
+		hint string
+	}{
+		{exe: "/opt/homebrew/Cellar/nwcli/1.0.0/bin/nwcli", hint: "brew upgrade"},
+		{exe: `C:\Users\alice\scoop\apps\nwcli\current\nwcli.exe`, hint: "scoop update"},
+	} {
+		err := installLatestWithEnv(context.Background(), io.Discard, io.Discard,
+			func() (string, error) { return tc.exe, nil },
+			func(string) (string, error) { return "/usr/bin/go", nil },
+			func(context.Context, string, []string, io.Writer, io.Writer) error {
+				t.Fatalf("go install should not run for %s", tc.exe)
+				return nil
+			},
+		)
+		if err == nil || !strings.Contains(err.Error(), tc.hint) {
+			t.Fatalf("exe %s: err = %v, want hint %q", tc.exe, err, tc.hint)
+		}
+	}
+}
+
+func TestInstallLatestExplainsMissingGoToolchain(t *testing.T) {
+	err := installLatestWithEnv(context.Background(), io.Discard, io.Discard,
+		func() (string, error) { return "/usr/local/bin/nwcli", nil },
+		func(string) (string, error) { return "", errors.New("executable file not found") },
+		func(context.Context, string, []string, io.Writer, io.Writer) error { return nil },
+	)
+	if err == nil || !strings.Contains(err.Error(), "Go toolchain not found") {
+		t.Fatalf("err = %v, want missing Go toolchain explanation", err)
+	}
+}

@@ -104,3 +104,36 @@ func TestRenderPrintsRowsAndUnusedRange(t *testing.T) {
 		}
 	}
 }
+
+func TestPlanSpecsSupportsNamedBlocksAndVLSMSort(t *testing.T) {
+	specs, err := ParsePrefixSpecs("db:28,web:27,mgmt:/28")
+	if err != nil {
+		t.Fatalf("ParsePrefixSpecs returned error: %v", err)
+	}
+	if len(specs) != 3 || specs[0].Name != "db" || specs[0].Prefix != 28 || specs[1].Name != "web" || specs[1].Prefix != 27 {
+		t.Fatalf("specs = %#v", specs)
+	}
+	if _, err := PlanSpecs("10.0.0.0/24", specs, false); err == nil {
+		t.Fatal("PlanSpecs without sort accepted unaligned /28 before /27")
+	}
+	plan, err := PlanSpecs("10.0.0.0/24", specs, true)
+	if err != nil {
+		t.Fatalf("PlanSpecs with sort returned error: %v", err)
+	}
+	if plan.Blocks[0].Name != "web" || plan.Blocks[0].CIDR.String() != "10.0.0.0/27" {
+		t.Fatalf("first sorted block = %#v, want web 10.0.0.0/27", plan.Blocks[0])
+	}
+	if plan.Blocks[1].Name != "db" || plan.Blocks[1].CIDR.String() != "10.0.0.32/28" {
+		t.Fatalf("second sorted block = %#v, want db 10.0.0.32/28", plan.Blocks[1])
+	}
+	if plan.Blocks[2].Name != "mgmt" || plan.Blocks[2].CIDR.String() != "10.0.0.48/28" {
+		t.Fatalf("third sorted block = %#v, want mgmt 10.0.0.48/28", plan.Blocks[2])
+	}
+	var out bytes.Buffer
+	if err := Render(&out, plan); err != nil {
+		t.Fatalf("Render error: %v", err)
+	}
+	if !strings.Contains(out.String(), "web") || !strings.Contains(out.String(), "db") {
+		t.Fatalf("Render missing block names:\n%s", out.String())
+	}
+}

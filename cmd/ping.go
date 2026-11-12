@@ -16,6 +16,7 @@ var continuousPingCheck = checks.CheckPingContinuous
 
 func newPingCommand() *cobra.Command {
 	var count int
+	var interval time.Duration
 	var timeout time.Duration
 	var continuous bool
 	cmd := &cobra.Command{
@@ -32,8 +33,9 @@ func newPingCommand() *cobra.Command {
 					return newCommandError(exitUsage, fmt.Errorf("continuous ping supports text output only"))
 				}
 				summary, err := continuousPingCheck(cmd.Context(), checks.PingOptions{
-					Host:    args[0],
-					Timeout: timeout,
+					Host:     args[0],
+					Interval: interval,
+					Timeout:  timeout,
 					OnUpdate: func(update checks.PingUpdate) {
 						renderPingUpdate(cmd.OutOrStdout(), update)
 					},
@@ -45,7 +47,7 @@ func newPingCommand() *cobra.Command {
 				}
 				return pingResultError(err)
 			}
-			attempts, summary, err := pingCheck(cmd.Context(), checks.PingOptions{Host: args[0], Count: count, Timeout: timeout})
+			attempts, summary, err := pingCheck(cmd.Context(), checks.PingOptions{Host: args[0], Count: count, Interval: interval, Timeout: timeout})
 			runErr := pingResultError(err)
 			return emitCommandResult(cmd, "ping", pingOutput(args[0], attempts, summary), runErr, func(w io.Writer) error {
 				renderPing(w, attempts, summary)
@@ -54,6 +56,7 @@ func newPingCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().IntVar(&count, "count", 4, "number of ICMP echo requests")
+	cmd.Flags().DurationVarP(&interval, "interval", "i", time.Second, "interval between ICMP echo requests")
 	cmd.Flags().DurationVar(&timeout, "timeout", time.Second, "timeout per request")
 	cmd.Flags().BoolVarP(&continuous, "continuous", "c", false, "ping until canceled and stream live packet-loss statistics")
 	return cmd

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestInspectCIDRReportsRangeAndAddressCount(t *testing.T) {
+func TestInspectCIDRReportsRangeMasksUsableAndScope(t *testing.T) {
 	info, err := InspectCIDR("10.0.0.37/24")
 	if err != nil {
 		t.Fatalf("InspectCIDR returned error: %v", err)
@@ -13,12 +13,29 @@ func TestInspectCIDRReportsRangeAndAddressCount(t *testing.T) {
 	if info.CIDR != "10.0.0.0/24" || info.First != "10.0.0.0" || info.Last != "10.0.0.255" || info.Addresses != "256" || info.Family != "IPv4" {
 		t.Fatalf("info = %#v", info)
 	}
+	if info.Netmask != "255.255.255.0" || info.Wildcard != "0.0.0.255" {
+		t.Fatalf("masks = netmask %q wildcard %q", info.Netmask, info.Wildcard)
+	}
+	if info.UsableFirst != "10.0.0.1" || info.UsableLast != "10.0.0.254" || info.UsableAddresses != "254" {
+		t.Fatalf("usable = %s-%s (%s)", info.UsableFirst, info.UsableLast, info.UsableAddresses)
+	}
+	if info.Scope != "private (RFC 1918)" {
+		t.Fatalf("Scope = %q, want private (RFC 1918)", info.Scope)
+	}
+
+	p2p, err := InspectCIDR("198.51.100.10/31")
+	if err != nil {
+		t.Fatalf("InspectCIDR /31 error: %v", err)
+	}
+	if p2p.UsableFirst != "198.51.100.10" || p2p.UsableLast != "198.51.100.11" || p2p.UsableAddresses != "2" || p2p.Scope != "documentation (RFC 5737)" {
+		t.Fatalf("p2p /31 = %#v", p2p)
+	}
 
 	ipv6, err := InspectCIDR("2001:db8::1/126")
 	if err != nil {
 		t.Fatalf("InspectCIDR IPv6 returned error: %v", err)
 	}
-	if ipv6.CIDR != "2001:db8::/126" || ipv6.Last != "2001:db8::3" || ipv6.Addresses != "4" || ipv6.Family != "IPv6" {
+	if ipv6.CIDR != "2001:db8::/126" || ipv6.Last != "2001:db8::3" || ipv6.Addresses != "4" || ipv6.Family != "IPv6" || ipv6.Scope != "documentation (RFC 3849)" {
 		t.Fatalf("ipv6 = %#v", ipv6)
 	}
 }

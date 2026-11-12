@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -46,5 +47,22 @@ func TestTCPCommandWritesJSONEnvelope(t *testing.T) {
 	}
 	if envelope.Command != "tcp" || envelope.Result.Address != "example.com:443" {
 		t.Fatalf("envelope = %#v", envelope)
+	}
+}
+
+func TestTCPCommandSupportsPortListAndRange(t *testing.T) {
+	original := tcpCheck
+	t.Cleanup(func() { tcpCheck = original })
+	tcpCheck = func(_ context.Context, _ checks.ContextDialer, opts checks.TCPOptions) checks.TCPResult {
+		return checks.TCPResult{Address: opts.Address, Latency: 3 * time.Millisecond, Reachable: true}
+	}
+	stdout, _, err := executeForTest("tcp", "example.com:80,443,8080-8081")
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	for _, want := range []string{"example.com:80", "example.com:443", "example.com:8080", "example.com:8081"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
 	}
 }

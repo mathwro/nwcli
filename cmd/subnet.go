@@ -27,30 +27,27 @@ func newSubnetCommand() *cobra.Command {
 func newSubnetCarveCommand() *cobra.Command {
 	var parentCIDR string
 	var sizes string
+	var sortVLSM bool
 	cmd := &cobra.Command{
 		Use:   "carve",
 		Short: "Carve child CIDRs from an IPv4 parent subnet",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			prefixes, err := subnet.ParsePrefixes(sizes)
+			specs, err := subnet.ParsePrefixSpecs(sizes)
 			if err != nil {
 				return newCommandError(exitUsage, err)
 			}
-			plan, err := subnet.Plan(parentCIDR, prefixes)
+			plan, err := subnet.PlanSpecs(parentCIDR, specs, sortVLSM)
 			if err != nil {
 				return newCommandError(exitUsage, err)
 			}
-			format, err := cmd.Root().PersistentFlags().GetString("output")
-			if err != nil {
-				return err
-			}
-			if format == "json" {
-				return writeJSONOutput(cmd.OutOrStdout(), "subnet carve", subnetPlanOutput(plan), nil)
-			}
-			return subnet.Render(cmd.OutOrStdout(), plan)
+			return emitCommandResult(cmd, "subnet carve", subnetPlanOutput(plan), nil, func(w io.Writer) error {
+				return subnet.Render(w, plan)
+			})
 		},
 	}
 	cmd.Flags().StringVar(&parentCIDR, "cidr", "", "parent IPv4 CIDR")
-	cmd.Flags().StringVar(&sizes, "sizes", "", "comma-separated child prefix lengths")
+	cmd.Flags().StringVar(&sizes, "sizes", "", "comma-separated child prefixes (e.g. 27,28 or web:27,db:28)")
+	cmd.Flags().BoolVar(&sortVLSM, "sort", false, "sort child prefixes largest-first (VLSM)")
 	_ = cmd.MarkFlagRequired("cidr")
 	_ = cmd.MarkFlagRequired("sizes")
 	return cmd
@@ -67,8 +64,7 @@ func newSubnetInspectCommand() *cobra.Command {
 				return newCommandError(exitUsage, err)
 			}
 			return emitCommandResult(cmd, "subnet inspect", cidrInfoOutput(info), nil, func(w io.Writer) error {
-				_, err := fmt.Fprintf(w, "CIDR: %s\nFamily: %s\nPrefix: /%d\nFirst: %s\nLast: %s\nAddresses: %s\n", info.CIDR, info.Family, info.Prefix, info.First, info.Last, info.Addresses)
-				return err
+				return renderCIDRInfo(w, info)
 			})
 		},
 	}
@@ -162,24 +158,49 @@ func newSubnetSummarizeCommand() *cobra.Command {
 	}
 }
 
+func renderCIDRInfo(w io.Writer, info subnet.CIDRInfo) error {
+	if _, err := fmt.Fprintf(w, "CIDR: %s\nFamily: %s\nPrefix: /%d\n", info.CIDR, info.Family, info.Prefix); err != nil {
+		return err
+	}
+	if info.Netmask != "" {
+		if _, err := fmt.Fprintf(w, "Netmask: %s\nWildcard: %s\n", info.Netmask, info.Wildcard); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintf(w, "First: %s\nLast: %s\nUsable: %s - %s (%s)\nAddresses: %s\nScope: %s\n",
+		info.First, info.Last, info.UsableFirst, info.UsableLast, info.UsableAddresses, info.Addresses, info.Scope)
+	return err
+}
+
 type cidrInfoJSON struct {
-	CIDR      string `json:"cidr"`
-	Family    string `json:"family"`
-	Prefix    int    `json:"prefix"`
-	First     string `json:"first"`
-	Last      string `json:"last"`
-	Addresses string `json:"addresses"`
+	CIDR            string `json:"cidr"`
+	Family          string `json:"family"`
+	Prefix          int    `json:"prefix"`
+	Netmask         string `json:"netmask,omitempty"`
+	Wildcard        string `json:"wildcard,omitempty"`
+	First           string `json:"first"`
+	Last            string `json:"last"`
+	UsableFirst     string `json:"usable_first"`
+	UsableLast      string `json:"usable_last"`
+	Addresses       string `json:"addresses"`
+	UsableAddresses string `json:"usable_addresses"`
+	Scope           string `json:"scope"`
 }
 
 func cidrInfoOutput(info subnet.CIDRInfo) cidrInfoJSON {
 	return cidrInfoJSON{
 		CIDR: info.CIDR, Family: info.Family, Prefix: info.Prefix,
-		First: info.First, Last: info.Last, Addresses: info.Addresses,
+		Netmask: info.Netmask, Wildcard: info.Wildcard,
+		First: info.First, Last: info.Last,
+		UsableFirst: info.UsableFirst, UsableLast: info.UsableLast,
+		Addresses: info.Addresses, UsableAddresses: info.UsableAddresses,
+		Scope: info.Scope,
 	}
 }
 
 type subnetBlockOutput struct {
 	Index     int    `json:"index"`
+	Name      string `json:"name,omitempty"`
 	CIDR      string `json:"cidr"`
 	First     string `json:"first"`
 	Last      string `json:"last"`
@@ -208,6 +229,7 @@ func subnetPlanOutput(plan subnet.AllocationPlan) subnetPlanJSON {
 	for i, block := range plan.Blocks {
 		result.Blocks[i] = subnetBlockOutput{
 			Index:     block.Index,
+			Name:      block.Name,
 			CIDR:      block.CIDR.String(),
 			First:     block.First.String(),
 			Last:      block.Last.String(),

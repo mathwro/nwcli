@@ -3,6 +3,7 @@ package checks
 import (
 	"context"
 	"errors"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -162,5 +163,61 @@ func TestRunContinuousPingStreamsEveryAttemptUntilCanceled(t *testing.T) {
 	}
 	if summary.Sent != 3 || summary.Received != 2 {
 		t.Fatalf("final summary = %+v", summary)
+	}
+}
+
+func TestListenPingSocketSupportsIPv6Networks(t *testing.T) {
+	want := new(icmp.PacketConn)
+	var networks []string
+	socket, err := listenPingSocketForFamily(true, func(network, _ string) (*icmp.PacketConn, error) {
+		networks = append(networks, network)
+		if network == "udp6" {
+			return nil, errors.New("unprivileged v6 unavailable")
+		}
+		return want, nil
+	})
+	if err != nil {
+		t.Fatalf("listenPingSocketForFamily returned error: %v", err)
+	}
+	if !socket.ipv6 || socket.datagram {
+		t.Fatalf("socket = %+v, want raw ipv6 socket", socket)
+	}
+	if len(networks) != 2 || networks[0] != "udp6" || networks[1] != "ip6:ipv6-icmp" {
+		t.Fatalf("networks = %v, want [udp6 ip6:ipv6-icmp]", networks)
+	}
+}
+
+func TestRunFinitePingPacesBetweenAttemptsAndStopsOnCancel(t *testing.T) {
+	var starts []time.Time
+	attempts, summary, err := runFinitePing(context.Background(), "127.0.0.1", 2, 25*time.Millisecond, func(seq int) (PingAttempt, error) {
+		starts = append(starts, time.Now())
+		return PingAttempt{Seq: seq, Latency: time.Millisecond}, nil
+	}, nil)
+	if err != nil || len(attempts) != 2 || summary.Received != 2 {
+		t.Fatalf("attempts=%d summary=%+v err=%v", len(attempts), summary, err)
+	}
+	if gap := starts[1].Sub(starts[0]); gap < 20*time.Millisecond {
+		t.Fatalf("gap between finite pings = %v, want >= 20ms", gap)
+	}
+}
+
+func TestPingOnceInterruptsBlockedReadWhenContextCanceled(t *testing.T) {
+	udpConn, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("ListenPacket: %v", err)
+	}
+	defer udpConn.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, readErr := readWithContextDeadline(ctx, udpConn, 5*time.Second)
+	elapsed := time.Since(start)
+	if !errors.Is(readErr, context.DeadlineExceeded) {
+		t.Fatalf("readErr = %v, want context.DeadlineExceeded", readErr)
+	}
+	if elapsed > 500*time.Millisecond {
+		t.Fatalf("elapsed = %v, want prompt wake-up well before 5s socket timeout", elapsed)
 	}
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -53,4 +55,59 @@ func CheckTCP(ctx context.Context, dialer ContextDialer, opts TCPOptions) TCPRes
 	result.LocalAddress = conn.LocalAddr().String()
 	result.RemoteAddress = conn.RemoteAddr().String()
 	return result
+}
+
+const maxExpandedPorts = 1024
+
+func ExpandTCPTarget(raw string) ([]string, error) {
+	host, portSpec, err := net.SplitHostPort(strings.TrimSpace(raw))
+	if err != nil || host == "" || portSpec == "" {
+		return nil, fmt.Errorf("invalid TCP address %q: expected HOST:PORT or HOST:PORT1,PORT2,START-END", raw)
+	}
+	parts := strings.Split(portSpec, ",")
+	var addresses []string
+	seen := make(map[int]bool)
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			return nil, fmt.Errorf("invalid TCP port list %q", raw)
+		}
+		if loStr, hiStr, ok := strings.Cut(part, "-"); ok {
+			lo, err1 := parsePortNumber(loStr)
+			hi, err2 := parsePortNumber(hiStr)
+			if err1 != nil || err2 != nil || lo > hi {
+				return nil, fmt.Errorf("invalid TCP port range %q in %q", part, raw)
+			}
+			if hi-lo+1 > maxExpandedPorts || len(addresses)+(hi-lo+1) > maxExpandedPorts {
+				return nil, fmt.Errorf("TCP port range %q exceeds maximum %d ports", raw, maxExpandedPorts)
+			}
+			for p := lo; p <= hi; p++ {
+				if !seen[p] {
+					seen[p] = true
+					addresses = append(addresses, net.JoinHostPort(host, strconv.Itoa(p)))
+				}
+			}
+			continue
+		}
+		p, err := parsePortNumber(part)
+		if err != nil {
+			return nil, fmt.Errorf("invalid TCP port %q in %q", part, raw)
+		}
+		if !seen[p] {
+			seen[p] = true
+			addresses = append(addresses, net.JoinHostPort(host, strconv.Itoa(p)))
+		}
+		if len(addresses) > maxExpandedPorts {
+			return nil, fmt.Errorf("TCP port list %q exceeds maximum %d ports", raw, maxExpandedPorts)
+		}
+	}
+	return addresses, nil
+}
+
+func parsePortNumber(raw string) (int, error) {
+	p, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || p < 1 || p > 65535 {
+		return 0, fmt.Errorf("port must be 1-65535")
+	}
+	return p, nil
 }

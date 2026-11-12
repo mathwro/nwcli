@@ -90,6 +90,11 @@ func lookupDNSRecords(ctx context.Context, resolver DNSResolver, host, recordTyp
 		if err != nil {
 			return nil, err
 		}
+		cleanName := strings.TrimSuffix(strings.TrimSpace(name), ".")
+		cleanHost := strings.TrimSuffix(strings.TrimSpace(host), ".")
+		if cleanName == "" || strings.EqualFold(cleanName, cleanHost) {
+			return nil, nil
+		}
 		return []string{name}, nil
 	case "MX":
 		records, err := resolver.LookupMX(ctx, host)

@@ -27,23 +27,18 @@ func newDNSCommand() *cobra.Command {
 			}
 			result := dnsCheck(cmd.Context(), nil, checks.DNSOptions{Host: args[0], Type: recordType, Server: server, Timeout: timeout})
 			runErr := dnsResultError(result)
-			format, err := cmd.Root().PersistentFlags().GetString("output")
-			if err != nil {
-				return err
-			}
-			if format == "json" {
-				if err := writeJSONOutput(cmd.OutOrStdout(), "dns", dnsOutput(result), runErr); err != nil {
-					return err
-				}
-			} else {
-				renderDNS(cmd.OutOrStdout(), result)
-			}
-			return runErr
+			return emitCommandResult(cmd, "dns", dnsOutput(result), runErr, func(w io.Writer) error {
+				renderDNS(w, result)
+				return nil
+			})
 		},
 	}
 	cmd.Flags().StringVar(&recordType, "type", "A", "record type: A, AAAA, CNAME, MX, NS, TXT, or PTR")
 	cmd.Flags().StringVar(&server, "server", "", "DNS resolver address, with optional port")
 	cmd.Flags().DurationVar(&timeout, "timeout", 2*time.Second, "query timeout")
+	_ = cmd.RegisterFlagCompletionFunc("type", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+		return []string{"A", "AAAA", "CNAME", "MX", "NS", "TXT", "PTR"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
 

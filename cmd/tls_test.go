@@ -55,6 +55,25 @@ func TestTLSCommandWritesJSONEnvelope(t *testing.T) {
 	}
 }
 
+func TestTLSCommandExitsUnhealthyAndRendersChainWhenVerificationFails(t *testing.T) {
+	original := tlsCheck
+	t.Cleanup(func() { tlsCheck = original })
+	tlsCheck = func(_ context.Context, opts checks.TLSOptions) checks.TLSResult {
+		return checks.TLSResult{
+			Address: opts.Address, ServerName: "example.com", Reachable: true, Verified: false,
+			Certificates: []checks.CertificateInfo{{Subject: "CN=untrusted.local", Issuer: "CN=untrusted.local", NotAfter: time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC), Serial: "99"}},
+			Err:          context.DeadlineExceeded,
+		}
+	}
+	stdout, _, err := executeForTest("tls", "example.com:443")
+	if ExitCode(err) != exitUnhealthy {
+		t.Fatalf("ExitCode = %d, want %d (err=%v)", ExitCode(err), exitUnhealthy, err)
+	}
+	if !strings.Contains(stdout, "Subject: CN=untrusted.local") {
+		t.Fatalf("stdout missing unverified certificate details:\n%s", stdout)
+	}
+}
+
 func containsLine(output, line string) bool {
 	for _, candidate := range strings.Split(output, "\n") {
 		if candidate == line {

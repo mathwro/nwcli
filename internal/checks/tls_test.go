@@ -38,14 +38,27 @@ func TestCheckTLSInspectsVerifiedConnection(t *testing.T) {
 	}
 }
 
-func TestCheckTLSReportsCertificateVerificationFailure(t *testing.T) {
+func TestCheckTLSReportsCertificateVerificationFailureWithUnverifiedChain(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	defer server.Close()
 	address := strings.TrimPrefix(server.URL, "https://")
 
 	result := CheckTLS(context.Background(), TLSOptions{Address: address, Timeout: time.Second})
-	if result.Err == nil || result.Verified {
-		t.Fatalf("result = %#v", result)
+	if result.Err == nil {
+		t.Fatal("Err = nil, want verification error")
+	}
+	if !result.Reachable || result.Verified {
+		t.Fatalf("result = %#v, want Reachable=true Verified=false", result)
+	}
+	if len(result.Certificates) == 0 {
+		t.Fatalf("Certificates empty on verification failure: %#v", result)
+	}
+}
+
+func TestCheckTLSMarksConnectionFailureUnreachable(t *testing.T) {
+	result := CheckTLS(context.Background(), TLSOptions{Address: "127.0.0.1:1", Timeout: 50 * time.Millisecond})
+	if result.Err == nil || result.Reachable || result.Verified {
+		t.Fatalf("result = %#v, want unreachable", result)
 	}
 }
 

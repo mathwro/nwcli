@@ -12,12 +12,34 @@ func Render(w io.Writer, plan AllocationPlan) error {
 	if _, err := fmt.Fprintf(w, "Parent: %s  addresses: %d\n\n", plan.Parent.String(), plan.ParentSize); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintln(w, "#  CIDR           FIRST        LAST          ADDRS  MAP"); err != nil {
-		return err
-	}
+	hasNames := false
 	for _, block := range plan.Blocks {
-		if _, err := fmt.Fprintf(w, "%-2d %-14s %-12s %-12s %-6d %s\n", block.Index, block.CIDR.String(), block.First.String(), block.Last.String(), block.Size, allocationBar(plan.ParentSize, block.StartOffset, block.Size)); err != nil {
+		if block.Name != "" {
+			hasNames = true
+			break
+		}
+	}
+	if hasNames {
+		if _, err := fmt.Fprintln(w, "#  NAME          CIDR           FIRST        LAST          ADDRS  MAP"); err != nil {
 			return err
+		}
+		for _, block := range plan.Blocks {
+			name := block.Name
+			if name == "" {
+				name = "-"
+			}
+			if _, err := fmt.Fprintf(w, "%-2d %-13s %-14s %-12s %-12s %-6d %s\n", block.Index, name, block.CIDR.String(), block.First.String(), block.Last.String(), block.Size, allocationBar(plan.ParentSize, block.StartOffset, block.Size)); err != nil {
+				return err
+			}
+		}
+	} else {
+		if _, err := fmt.Fprintln(w, "#  CIDR           FIRST        LAST          ADDRS  MAP"); err != nil {
+			return err
+		}
+		for _, block := range plan.Blocks {
+			if _, err := fmt.Fprintf(w, "%-2d %-14s %-12s %-12s %-6d %s\n", block.Index, block.CIDR.String(), block.First.String(), block.Last.String(), block.Size, allocationBar(plan.ParentSize, block.StartOffset, block.Size)); err != nil {
+				return err
+			}
 		}
 	}
 	if _, err := fmt.Fprintln(w); err != nil {

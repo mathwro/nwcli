@@ -6,6 +6,7 @@ import (
 
 	"github.com/mathwro/nwcli/internal/selfupdate"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 var updateInstall = selfupdate.InstallLatest
@@ -30,7 +31,11 @@ func newUpdateCommand() *cobra.Command {
 			}
 			runErr := updateInstall(cmd.Context(), installStdout, cmd.ErrOrStderr())
 			if runErr != nil {
-				runErr = newCommandError(exitUnreachable, runErr)
+				code := exitUnreachable
+				if strings.Contains(runErr.Error(), "managed by ") || strings.Contains(runErr.Error(), "Go toolchain not found") {
+					code = exitUsage
+				}
+				runErr = newCommandError(code, runErr)
 			}
 			return emitCommandResult(cmd, "update", updateResult{Target: selfupdate.Target}, runErr, func(w io.Writer) error {
 				_, err := fmt.Fprintln(w, "nwcli updated to the latest available version")
