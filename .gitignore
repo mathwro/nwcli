@@ -1,2 +1,8 @@
-.worktrees/
-graphify-out/
+/.worktrees/
+/graphify-out/
+/nwcli
+/nwcli.exe
+*.exe
+*.test
+*.out
+dist/

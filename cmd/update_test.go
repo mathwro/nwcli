@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -73,5 +74,18 @@ func TestUpdateCommandIsNotAnInteractiveAction(t *testing.T) {
 		if strings.EqualFold(action.Title, "update") {
 			t.Fatal("update command unexpectedly appears in TUI actions")
 		}
+	}
+}
+
+func TestUpdateCommandUsesUsageExitCodeForPrebuiltReleaseError(t *testing.T) {
+	original := updateInstall
+	t.Cleanup(func() { updateInstall = original })
+	updateInstall = func(context.Context, io.Writer, io.Writer) error {
+		return errors.New("nwcli was installed from a prebuilt release archive")
+	}
+
+	_, _, err := executeForTest("update")
+	if got := ExitCode(err); got != exitUsage {
+		t.Fatalf("ExitCode(err) = %d, want %d", got, exitUsage)
 	}
 }

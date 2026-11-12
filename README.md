@@ -13,15 +13,16 @@
 - Bounded concurrent DNS, TCP, TLS, HTTP/S, and Ping batch checks with `--file` / stdin (`-`) target lists.
 - Versioned JSON output, stable automation exit codes, and shell completions (`bash`, `zsh`, `fish`, `powershell`).
 - Searchable Bubble Tea TUI with structured result summaries, quick re-run (`r`), form editing (`e`), and clipboard copy (`c`).
-- Self-update through the Go toolchain with Homebrew/Scoop package-manager guards.
+- Self-update through the Go toolchain with Homebrew, Scoop, and prebuilt-release guards.
 
 ## Install
 
-After the first stable release is available, install the prebuilt executable with Scoop on Windows:
+Install the prebuilt executable with Scoop on Windows:
 
 ```powershell
 scoop bucket add mathwro https://github.com/mathwro/homebrew-tools
 scoop install mathwro/nwcli
+scoop update nwcli
 ```
 
 Install with Homebrew on macOS or Linux:
@@ -29,6 +30,7 @@ Install with Homebrew on macOS or Linux:
 ```bash
 brew tap mathwro/tools
 brew install mathwro/tools/nwcli
+brew upgrade mathwro/tools/nwcli
 ```
 
 The Go toolchain remains an alternative installation method:
@@ -211,7 +213,7 @@ Update `nwcli` to the latest version available from its Go module:
 nwcli update
 ```
 
-This direct CLI command runs `go install github.com/mathwro/nwcli@latest` when `go` is on `PATH`. If `nwcli` was installed via Homebrew or Scoop, `nwcli update` detects the managed path and prints the matching `brew upgrade` or `scoop update` command instead of creating a duplicate binary.
+This direct CLI command runs `go install github.com/mathwro/nwcli@latest` when `go` is on `PATH`. If `nwcli` was installed via Homebrew, Scoop, or a prebuilt release archive, `nwcli update` detects it and prints the matching `brew upgrade`, `scoop update`, or GitHub Releases instruction instead of creating a duplicate binary in `GOBIN`.
 
 ### Shell completions
 

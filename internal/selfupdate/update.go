@@ -8,9 +8,16 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/mathwro/nwcli/internal/version"
 )
 
-const Target = "github.com/mathwro/nwcli@latest"
+const (
+	Target           = "github.com/mathwro/nwcli@latest"
+	latestReleaseURL = "https://github.com/mathwro/nwcli/releases/latest"
+)
+
+var isPrebuiltRelease = version.IsPrebuiltRelease
 
 type runner func(context.Context, string, []string, io.Writer, io.Writer) error
 
@@ -40,6 +47,9 @@ func installLatestWithEnv(
 		case strings.Contains(normalized, "/scoop/apps/nwcli/"):
 			return fmt.Errorf("nwcli is managed by Scoop (%s): run 'scoop update nwcli' instead", exe)
 		}
+	}
+	if isPrebuiltRelease() {
+		return fmt.Errorf("nwcli was installed from a prebuilt release archive rather than go install: update via your package manager (brew/scoop) or %s", latestReleaseURL)
 	}
 	if _, err := lookPath("go"); err != nil {
 		return fmt.Errorf("Go toolchain not found on PATH: install Go or update nwcli with your package manager (brew/scoop)")
