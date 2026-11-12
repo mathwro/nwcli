@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -91,46 +90,4 @@ func (m ProgressModel) View() tea.View {
 		b.WriteByte('\n')
 	}
 	return tea.NewView(b.String())
-}
-
-type progressRunnerModel struct {
-	ProgressModel
-	events <-chan ProgressEvent
-}
-
-func RunProgress(ctx context.Context, title string, events <-chan ProgressEvent) error {
-	if events == nil {
-		return nil
-	}
-	model := progressRunnerModel{ProgressModel: NewProgressModel(title), events: events}
-	_, err := tea.NewProgram(model, tea.WithContext(ctx)).Run()
-	return err
-}
-
-func (m progressRunnerModel) Init() tea.Cmd {
-	return waitProgressEvent(m.events)
-}
-
-func (m progressRunnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	updated, cmd := m.ProgressModel.Update(msg)
-	m.ProgressModel = updated.(ProgressModel)
-	if m.done {
-		return m, cmd
-	}
-	if _, ok := msg.(ProgressEvent); ok {
-		return m, waitProgressEvent(m.events)
-	}
-	return m, cmd
-}
-
-func (m progressRunnerModel) View() tea.View { return m.ProgressModel.View() }
-
-func waitProgressEvent(events <-chan ProgressEvent) tea.Cmd {
-	return func() tea.Msg {
-		event, ok := <-events
-		if !ok {
-			return ProgressEvent{Label: "complete", Current: 1, Total: 1, Done: true}
-		}
-		return event
-	}
 }

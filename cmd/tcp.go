@@ -24,18 +24,10 @@ func newTCPCommand() *cobra.Command {
 			}
 			result := tcpCheck(cmd.Context(), nil, checks.TCPOptions{Address: args[0], Timeout: timeout})
 			runErr := tcpResultError(result)
-			format, err := cmd.Root().PersistentFlags().GetString("output")
-			if err != nil {
-				return err
-			}
-			if format == "json" {
-				if err := writeJSONOutput(cmd.OutOrStdout(), "tcp", tcpOutput(result), runErr); err != nil {
-					return err
-				}
-			} else {
-				renderTCP(cmd.OutOrStdout(), result)
-			}
-			return runErr
+			return emitCommandResult(cmd, "tcp", tcpOutput(result), runErr, func(w io.Writer) error {
+				renderTCP(w, result)
+				return nil
+			})
 		},
 	}
 	cmd.Flags().DurationVar(&timeout, "timeout", 2*time.Second, "connection timeout")

@@ -1,9 +1,14 @@
 package cmd
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"testing"
+
+	"github.com/mathwro/nwcli/internal/checks"
 )
 
 func TestSubnetCarveJSONOutputUsesSharedEnvelope(t *testing.T) {
@@ -49,5 +54,46 @@ func TestExitCodeUsesTypedFailuresAndUsageFallback(t *testing.T) {
 	}
 	if got := ExitCode(errors.New("bad arguments")); got != exitUsage {
 		t.Fatalf("ExitCode(usage) = %d", got)
+	}
+}
+
+func TestFailedCheckSuppressesCobraUsageAndStderrInJSONMode(t *testing.T) {
+	original := httpCheck
+	t.Cleanup(func() { httpCheck = original })
+	httpCheck = func(_ context.Context, _ *http.Client, opts checks.HTTPOptions) checks.HTTPResult {
+		return checks.HTTPResult{URL: "http://" + opts.Host + ":80/", StatusCode: 503, Reachable: true, Healthy: false}
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := runCLI(context.Background(), []string{"--output", "json", "http", "example.com"}, &stdout, &stderr, func(context.Context) error { return nil })
+	if code != exitUnhealthy {
+		t.Fatalf("code = %d, want %d", code, exitUnhealthy)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty when JSON error envelope emitted", stderr.String())
+	}
+	var envelope outputEnvelope
+	if err := json.Unmarshal(stdout.Bytes(), &envelope); err != nil {
+		t.Fatalf("invalid JSON %q: %v", stdout.String(), err)
+	}
+	if envelope.OK || envelope.Error == nil || envelope.Error.Code != exitUnhealthy {
+		t.Fatalf("envelope = %#v", envelope)
+	}
+}
+
+func TestFailedCheckPrintsErrorOnceWithoutUsageInTextMode(t *testing.T) {
+	original := httpCheck
+	t.Cleanup(func() { httpCheck = original })
+	httpCheck = func(_ context.Context, _ *http.Client, opts checks.HTTPOptions) checks.HTTPResult {
+		return checks.HTTPResult{URL: "http://" + opts.Host + ":80/", StatusCode: 503, Reachable: true, Healthy: false}
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := runCLI(context.Background(), []string{"http", "example.com"}, &stdout, &stderr, func(context.Context) error { return nil })
+	if code != exitUnhealthy {
+		t.Fatalf("code = %d, want %d", code, exitUnhealthy)
+	}
+	if got := stderr.String(); got != "endpoint reachable but unhealthy: status 503\n" {
+		t.Fatalf("stderr = %q, want single error line without usage", got)
 	}
 }

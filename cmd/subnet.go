@@ -39,14 +39,9 @@ func newSubnetCarveCommand() *cobra.Command {
 			if err != nil {
 				return newCommandError(exitUsage, err)
 			}
-			format, err := cmd.Root().PersistentFlags().GetString("output")
-			if err != nil {
-				return err
-			}
-			if format == "json" {
-				return writeJSONOutput(cmd.OutOrStdout(), "subnet carve", subnetPlanOutput(plan), nil)
-			}
-			return subnet.Render(cmd.OutOrStdout(), plan)
+			return emitCommandResult(cmd, "subnet carve", subnetPlanOutput(plan), nil, func(w io.Writer) error {
+				return subnet.Render(w, plan)
+			})
 		},
 	}
 	cmd.Flags().StringVar(&parentCIDR, "cidr", "", "parent IPv4 CIDR")

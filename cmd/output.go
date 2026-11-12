@@ -17,8 +17,9 @@ const (
 )
 
 type commandError struct {
-	code int
-	err  error
+	code        int
+	err         error
+	emittedJSON bool
 }
 
 func newCommandError(code int, err error) error {
@@ -26,6 +27,23 @@ func newCommandError(code int, err error) error {
 		return nil
 	}
 	return commandError{code: code, err: err}
+}
+
+func markEmittedJSON(err error) error {
+	if err == nil {
+		return nil
+	}
+	var target commandError
+	if errors.As(err, &target) {
+		target.emittedJSON = true
+		return target
+	}
+	return commandError{code: ExitCode(err), err: err, emittedJSON: true}
+}
+
+func isEmittedJSONError(err error) bool {
+	var target commandError
+	return errors.As(err, &target) && target.emittedJSON
 }
 
 func (e commandError) Error() string { return e.err.Error() }
@@ -81,7 +99,9 @@ func emitCommandResult(cmd *cobra.Command, command string, result any, runErr er
 		if err := writeJSONOutput(cmd.OutOrStdout(), command, result, runErr); err != nil {
 			return err
 		}
-	} else if renderText != nil {
+		return markEmittedJSON(runErr)
+	}
+	if renderText != nil {
 		if err := renderText(cmd.OutOrStdout()); err != nil {
 			return err
 		}

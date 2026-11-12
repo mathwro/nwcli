@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -25,10 +26,12 @@ func NewRootCommand(menuRunner func(context.Context) error) *cobra.Command {
 	}
 	var outputFormat string
 	root := &cobra.Command{
-		Use:     "nwcli",
-		Short:   "Network toolbox for subnet planning and connectivity checks",
-		Long:    "nwcli is a network toolbox for subnet planning, DNS diagnostics, and connectivity checks.",
-		Version: version.String(),
+		Use:           "nwcli",
+		Short:         "Network toolbox for subnet planning and connectivity checks",
+		Long:          "nwcli is a network toolbox for subnet planning, DNS diagnostics, and connectivity checks.",
+		Version:       version.String(),
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		PersistentPreRunE: func(*cobra.Command, []string) error {
 			return validateOutputFormat(outputFormat)
 		},
@@ -45,10 +48,31 @@ func NewRootCommand(menuRunner func(context.Context) error) *cobra.Command {
 func Execute() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	if err := NewRootCommand(runInteractiveMenu).ExecuteContext(ctx); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(ExitCode(err))
+	if code := runCLI(ctx, os.Args[1:], os.Stdout, os.Stderr, runInteractiveMenu); code != 0 {
+		os.Exit(code)
 	}
+}
+
+func runCLI(ctx context.Context, args []string, stdout, stderr io.Writer, menuRunner func(context.Context) error) int {
+	root := NewRootCommand(menuRunner)
+	root.SetOut(stdout)
+	root.SetErr(stderr)
+	root.SetArgs(args)
+	err := root.ExecuteContext(ctx)
+	if err == nil {
+		return 0
+	}
+	if isEmittedJSONError(err) {
+		return ExitCode(err)
+	}
+	format, flagErr := root.PersistentFlags().GetString("output")
+	if flagErr == nil && format == "json" {
+		if writeErr := writeJSONOutput(stdout, root.Name(), nil, err); writeErr == nil {
+			return ExitCode(err)
+		}
+	}
+	fmt.Fprintln(stderr, err)
+	return ExitCode(err)
 }
 
 func runInteractiveMenu(ctx context.Context) error {

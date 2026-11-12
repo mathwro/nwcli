@@ -32,18 +32,10 @@ func newTLSCommand() *cobra.Command {
 			}
 			result := tlsCheck(cmd.Context(), checks.TLSOptions{Address: args[0], ServerName: serverName, Timeout: timeout, WarnBefore: warnBefore})
 			runErr := tlsResultError(result)
-			format, err := cmd.Root().PersistentFlags().GetString("output")
-			if err != nil {
-				return err
-			}
-			if format == "json" {
-				if err := writeJSONOutput(cmd.OutOrStdout(), "tls", tlsOutput(result), runErr); err != nil {
-					return err
-				}
-			} else {
-				renderTLS(cmd.OutOrStdout(), result)
-			}
-			return runErr
+			return emitCommandResult(cmd, "tls", tlsOutput(result), runErr, func(w io.Writer) error {
+				renderTLS(w, result)
+				return nil
+			})
 		},
 	}
 	cmd.Flags().StringVar(&serverName, "server-name", "", "TLS server name for SNI and certificate verification")
